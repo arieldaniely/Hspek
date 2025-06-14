@@ -101,8 +101,8 @@ class TorahTreeApp(ctk.CTk):
         # ---------- Top bar ----------
         top_frame = ctk.CTkFrame(self, fg_color="transparent")
         top_frame.pack(fill="x", padx=8, pady=(7,3))
-        ctk.CTkButton(top_frame, text="טען קובץ נתונים...", command=self.choose_file, width=140).pack(side="right", padx=(0,10))
-        ctk.CTkLabel(top_frame, text="מניין לימוד - בחר קובץ / סעיף / תאריכים", font=ctk.CTkFont(size=19, weight="bold")).pack(side="left")
+        ctk.CTkButton(top_frame, text="נתונים קובץ טען...", command=self.choose_file, width=140).pack(side="right", padx=(0,10))
+        ctk.CTkLabel(top_frame, text="תאריכים \ סעיף \ קובץ - לימוד מניין", font=ctk.CTkFont(size=19, weight="bold")).pack(side="left")
 
         # ---------- Main frame ----------
         main_frame = ctk.CTkFrame(self, fg_color="#f8fafc")
@@ -116,6 +116,10 @@ class TorahTreeApp(ctk.CTk):
         tree_frame.grid(row=0, column=0, sticky="nsew", padx=(0,18), pady=3)
         tree_frame.grid_rowconfigure(0, weight=1)
         tree_frame.grid_columnconfigure(0, weight=1)
+
+        style = ttk.Style(self)
+        style.configure("Treeview", font=("Arial", 18), rowheight=30)
+
         self.tree = ttk.Treeview(tree_frame, selectmode="extended", show="tree", height=20)
         self.tree.grid(row=0, column=0, sticky="nsew", padx=(4,0), pady=6)
         scroll_y = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
@@ -131,7 +135,7 @@ class TorahTreeApp(ctk.CTk):
 
         # -- סוג ספירה --
         mode_group = ctk.CTkFrame(ctrl_frame, fg_color="#d9e9f6", corner_radius=12)
-        ctk.CTkLabel(mode_group, text="סכם לפי", font=ctk.CTkFont(weight="bold")).pack(anchor="ne", padx=8, pady=(4, 0))
+        ctk.CTkLabel(mode_group, text="לפי סכם", font=ctk.CTkFont(weight="bold")).pack(anchor="ne", padx=8, pady=(4, 0))
         mode_group.grid(row=0, column=0, sticky="ew", pady=7, padx=12)
         for opt in ("פרקים", "משניות", "דפים", "עמודים"):
             rb = ctk.CTkRadioButton(mode_group, text=opt, variable=self.mode, value=opt, command=self.update_sum_and_daily_progress)
@@ -139,21 +143,23 @@ class TorahTreeApp(ctk.CTk):
             self.radio_buttons[opt] = rb
 
         # -- תוצאות --
-        self.sum_label = ctk.CTkLabel(ctrl_frame, text="האורך הכולל: 0", font=ctk.CTkFont(size=16, weight="bold"), text_color="#2b539b")
+        self.sum_label = ctk.CTkLabel(ctrl_frame, text="הכולל האורך: 0", font=ctk.CTkFont(size=16, weight="bold"), text_color="#2b539b")
         self.sum_label.grid(row=1, column=0, sticky="ew", pady=(8,4))
-        self.daily_progress_label = ctk.CTkLabel(ctrl_frame, text="הספק יומי: N/A", font=ctk.CTkFont(size=13), text_color="#803b99")
+        self.daily_progress_label = ctk.CTkLabel(ctrl_frame, text="יומי הספק: N/A", font=ctk.CTkFont(size=13), text_color="#803b99")
         self.daily_progress_label.grid(row=2, column=0, sticky="ew", pady=(0,9))
 
         # -- תאריכים --
         date_frame = ctk.CTkFrame(ctrl_frame, fg_color="#d9e9f6", corner_radius=12)
-        ctk.CTkLabel(date_frame, text="הגדר טווח לימוד", font=ctk.CTkFont(weight="bold")).pack(anchor="ne", padx=8, pady=(4, 0))
+        ctk.CTkLabel(date_frame, text="לימוד טווח הגדר", font=ctk.CTkFont(weight="bold")).pack(anchor="ne", padx=8, pady=(4, 0))
         date_frame.grid(row=3, column=0, sticky="ew", padx=12, pady=(0,8))
-        ttk.Label(date_frame, text="תאריך התחלה:").pack(anchor="w")
-        self.start_date_entry = DateEntry(date_frame, textvariable=self.start_date_var, width=14, date_pattern="yyyy-mm-dd", locale='he_IL')
+        ttk.Label(date_frame, text="תאריך התחלה:", font=("Arial", 15)).pack(anchor="w")
+        self.start_date_entry = DateEntry(date_frame, textvariable=self.start_date_var, width=14, date_pattern="yyyy-mm-dd", locale='he_IL', font=("Arial", 14))
         self.start_date_entry.pack(fill="x", pady=2)
-        ttk.Label(date_frame, text="תאריך סיום:").pack(anchor="w")
-        self.end_date_entry = DateEntry(date_frame, textvariable=self.end_date_var, width=14, date_pattern="yyyy-mm-dd", locale='he_IL')
+
+        ttk.Label(date_frame, text="תאריך סיום:", font=("Arial", 15)).pack(anchor="w")
+        self.end_date_entry = DateEntry(date_frame, textvariable=self.end_date_var, width=14, date_pattern="yyyy-mm-dd", locale='he_IL', font=("Arial", 14))
         self.end_date_entry.pack(fill="x", pady=2)
+
 
         self.start_date_var.trace_add("write", lambda *args: self.calculate_and_display_daily_progress())
         self.end_date_var.trace_add("write", lambda *args: self.calculate_and_display_daily_progress())
@@ -168,9 +174,9 @@ class TorahTreeApp(ctk.CTk):
             cb.grid(row=i // 4, column=i % 4, sticky="w", padx=1, pady=2)
 
         # -- כפתורים --
-        btn_calc = ctk.CTkButton(ctrl_frame, text="חשב אורך", fg_color="#cce5ff", text_color="#1f4788", command=self.update_sum_and_daily_progress, height=38)
+        btn_calc = ctk.CTkButton(ctrl_frame, text="אורך חשב", fg_color="#cce5ff", text_color="#1f4788", command=self.update_sum_and_daily_progress, height=38)
         btn_calc.grid(row=5, column=0, sticky="ew", padx=20, pady=(10,2))
-        btn_export = ctk.CTkButton(ctrl_frame, text="ייצוא לקובץ ICS", fg_color="#218cfa", hover_color="#186bb7", text_color="white", command=self.generate_ics, height=38)
+        btn_export = ctk.CTkButton(ctrl_frame, text="לקובץ ייצוא ICS", fg_color="#218cfa", hover_color="#186bb7", text_color="white", command=self.generate_ics, height=38)
         btn_export.grid(row=6, column=0, sticky="ew", padx=20, pady=(0,12))
 
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
