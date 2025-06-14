@@ -79,7 +79,7 @@ class TorahTreeApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("מניין לימוד | חישוב הספק יומי")
-        self.geometry("940x560")
+        self.geometry("940x590")
         self.minsize(780, 480)
 
         self.mode = ctk.StringVar(value="פרקים")
@@ -166,12 +166,26 @@ class TorahTreeApp(ctk.CTk):
 
         # -- ימי חופשה --
         no_study_frame = ctk.CTkFrame(ctrl_frame, fg_color="#d9e9f6", corner_radius=12)
-        ctk.CTkLabel(no_study_frame, text="ימי חופשה", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, columnspan=4, sticky="w", padx=8, pady=(4, 0))
-        no_study_frame.grid(row=4, column=0, sticky="ew", padx=12, pady=(0,7))
+
+        ctk.CTkLabel(
+            no_study_frame,
+            text="חופשה ימי",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            anchor="e",
+            justify="right"
+        ).grid(row=0, column=0, columnspan=4, sticky="e", padx=12, pady=(4, 0))
+
+
         days = list(self.no_study_days.keys())
         for i, day in enumerate(days):
-            cb = ctk.CTkCheckBox(no_study_frame, text=day, variable=self.no_study_days[day], command=self.calculate_and_display_daily_progress)
-            cb.grid(row=i // 4, column=i % 4, sticky="w", padx=1, pady=2)
+            cb = ctk.CTkCheckBox(
+                no_study_frame, text=day, variable=self.no_study_days[day], command=self.calculate_and_display_daily_progress
+            )
+            cb.grid(row=(i // 4) + 1, column=i % 4, sticky="w", padx=1, pady=2)
+
+        # רק עכשיו – הצג את המסגרת
+        no_study_frame.grid(row=4, column=0, sticky="ew", padx=12, pady=(0, 7))
+
 
         # -- כפתורים --
         btn_calc = ctk.CTkButton(ctrl_frame, text="אורך חשב", fg_color="#cce5ff", text_color="#1f4788", command=self.update_sum_and_daily_progress, height=38)
