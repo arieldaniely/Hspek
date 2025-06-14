@@ -130,7 +130,8 @@ class TorahTreeApp(ctk.CTk):
         ctrl_frame.grid_columnconfigure(0, weight=1)
 
         # -- סוג ספירה --
-        mode_group = ctk.CTkLabelFrame(ctrl_frame, text="סכם לפי", fg_color="#d9e9f6", corner_radius=12)
+        mode_group = ctk.CTkFrame(ctrl_frame, fg_color="#d9e9f6", corner_radius=12)
+        ctk.CTkLabel(mode_group, text="סכם לפי", font=ctk.CTkFont(weight="bold")).pack(anchor="ne", padx=8, pady=(4, 0))
         mode_group.grid(row=0, column=0, sticky="ew", pady=7, padx=12)
         for opt in ("פרקים", "משניות", "דפים", "עמודים"):
             rb = ctk.CTkRadioButton(mode_group, text=opt, variable=self.mode, value=opt, command=self.update_sum_and_daily_progress)
@@ -144,7 +145,8 @@ class TorahTreeApp(ctk.CTk):
         self.daily_progress_label.grid(row=2, column=0, sticky="ew", pady=(0,9))
 
         # -- תאריכים --
-        date_frame = ctk.CTkLabelFrame(ctrl_frame, text="הגדר טווח לימוד", fg_color="#d9e9f6", corner_radius=12)
+        date_frame = ctk.CTkFrame(ctrl_frame, fg_color="#d9e9f6", corner_radius=12)
+        ctk.CTkLabel(date_frame, text="הגדר טווח לימוד", font=ctk.CTkFont(weight="bold")).pack(anchor="ne", padx=8, pady=(4, 0))
         date_frame.grid(row=3, column=0, sticky="ew", padx=12, pady=(0,8))
         ttk.Label(date_frame, text="תאריך התחלה:").pack(anchor="w")
         self.start_date_entry = DateEntry(date_frame, textvariable=self.start_date_var, width=14, date_pattern="yyyy-mm-dd", locale='he_IL')
@@ -157,7 +159,8 @@ class TorahTreeApp(ctk.CTk):
         self.end_date_var.trace_add("write", lambda *args: self.calculate_and_display_daily_progress())
 
         # -- ימי חופשה --
-        no_study_frame = ctk.CTkLabelFrame(ctrl_frame, text="ימי חופשה", fg_color="#d9e9f6", corner_radius=12)
+        no_study_frame = ctk.CTkFrame(ctrl_frame, fg_color="#d9e9f6", corner_radius=12)
+        ctk.CTkLabel(no_study_frame, text="ימי חופשה", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, columnspan=4, sticky="w", padx=8, pady=(4, 0))
         no_study_frame.grid(row=4, column=0, sticky="ew", padx=12, pady=(0,7))
         days = list(self.no_study_days.keys())
         for i, day in enumerate(days):
