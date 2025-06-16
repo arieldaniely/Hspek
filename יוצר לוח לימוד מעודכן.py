@@ -1,3 +1,5 @@
+####גרסא קודמת, מומלץ להתשתמש ב app_gui_full_updated.py####
+
 import customtkinter as ctk
 from tkinter import ttk, filedialog, messagebox
 import json
