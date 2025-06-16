@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>סימניית לימוד - {{ title }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap');
+        body {
+            font-family: 'Assistant', sans-serif;
+            margin: 20px;
+        }
+        .bookmark {
+            border: 2px solid #666;
+            padding: 15px;
+            width: 95%;
+            margin: auto;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+        h1 {
+            border-bottom: 2px solid #888;
+            padding-bottom: 10px;
+        }
+        .month-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+            table-layout: fixed;
+        }
+        .month-table th, .month-table td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+            vertical-align: top;
+            height: 100px;
+        }
+        .month-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .day-cell {
+            position: relative;
+        }
+        .hebrew-date {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #444;
+        }
+        .study-portion {
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 5px;
+            word-wrap: break-word;
+        }
+        .not-in-month {
+            background-color: #fafafa;
+        }
+        .hebrew-day-number {
+            font-size: 0.85em;
+            color: #333;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="bookmark">
+        <h1>{{ title }}</h1>
+        <h2>{{ date_range }}</h2>
+
+        {% for month_data in monthly_schedule %}
+        <h2>{{ month_data.month_name }}</h2>
+        <table class="month-table">
+            <thead>
+                <tr>
+                    <th>ראשון</th>
+                    <th>שני</th>
+                    <th>שלישי</th>
+                    <th>רביעי</th>
+                    <th>חמישי</th>
+                    <th>שישי</th>
+                    <th>שבת</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for week in month_data.weeks %}
+                <tr>
+                    {% for day in week %}
+                    <td class="day-cell {% if not day.is_in_month %}not-in-month{% endif %}">
+                        {% if day.hebrew_date %}
+                            <div class="hebrew-date">{{ day.hebrew_date }}</div>
+                            <div class="hebrew-day-number">{{ day.hebrew_day_number }}</div>
+                            {% if day.study_portion %}
+                                <div class="study-portion">{{ day.study_portion }}</div>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
+    </div>
+</body>
+</html>
