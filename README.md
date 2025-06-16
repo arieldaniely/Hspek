@@ -2,21 +2,22 @@
 תוכנה פשוטה ליצירת הספק לימוד בתנ"ך, משניות ותלמוד.
 
 ## מבנה הפרויקט
-המאגר מכיל שלושה קבצים עיקריים:
-1. **`יוצר לוח לימוד מעודכן.py`** – קובץ פייתון המממש את הממשק הגרפי ואת לוגיקת חישוב ההספק.
-2. **`torah_tree_data_full.json`** – קובץ JSON גדול הכולל את מבנה הספרים, הפרקים והדפים בכל המקורות.
-3. **`README.md`** – קובץ זה.
+המאגר מכיל ארבעה קבצים עיקריים:
+1. **`torah_logic_full_updated.py`** – קובץ פייתון המממש את הלוגיקת חישוב ההספק.
+2. **`app_gui_full_updated.py`** - קובץ פייתון המממש את הממשק הגרפי של התוכנה, מתמשק עם torah_logic_full_updated.py.
+3. **`torah_tree_data_full.json`** – קובץ JSON גדול הכולל את מבנה הספרים, הפרקים והדפים בכל המקורות.
+4. **`README.md`** – קובץ זה.
 
-הקוד אינו מחולק לתת‑חבילות; כל הלוגיקה מרוכזת במחלקה `TorahTreeApp` שבקובץ הפייתון.
+הקוד מחולק לשני תתי‑חבילות; כל הלוגיקה מרוכזת בקובץ `torah_logic_full_updated.py`.
 
 ## הפעלת התוכנה
 1. התקינו את התלויות:
    ```bash
-   pip install customtkinter tkcalendar ics
+   pip install customtkinter tkcalendar ics pyluach jinja2 gematria
    ```
 2. הריצו את הקובץ:
    ```bash
-   python יוצר לוח לימוד מעודכן.py
+   python app_gui_full_updated.py
    ```
 
 ## תפעול בסיסי
