@@ -1,107 +1,215 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <title>סימניית לימוד - {{ title }}</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap');
-        body {
-            font-family: 'Assistant', sans-serif;
-            margin: 20px;
-        }
-        .bookmark {
-            border: 2px solid #666;
-            padding: 15px;
-            width: 95%;
-            margin: auto;
-        }
-        h1, h2 {
-            text-align: center;
-            color: #333;
-        }
-        h1 {
-            border-bottom: 2px solid #888;
-            padding-bottom: 10px;
-        }
-        .month-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 25px;
-            table-layout: fixed;
-        }
-        .month-table th, .month-table td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            text-align: center;
-            vertical-align: top;
-            height: 100px;
-        }
-        .month-table th {
-            background-color: #f2f2f2;
-            font-weight: bold;
-        }
-        .day-cell {
-            position: relative;
-        }
-        .hebrew-date {
-            font-weight: bold;
-            font-size: 1.1em;
-            color: #444;
-        }
-        .study-portion {
-            font-size: 0.9em;
-            color: #555;
-            margin-top: 5px;
-            word-wrap: break-word;
-        }
-        .not-in-month {
-            background-color: #fafafa;
-        }
-        .hebrew-day-number {
-            font-size: 0.85em;
-            color: #333;
-        }
+  <meta charset="UTF-8">
+  <title>סימניית לימוד - {{ title }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #f4f6fa;
+      --text-color: #333;
+      --card-bg: #ffffff;
+      --header-bg: #dfe8f2;
+      --header-text: #2f4050;
+      --border-color: #e0e6ef;
+      --shabbat-bg: linear-gradient(135deg, #fff6ec, #ffe1b5);
+      --shabbat-text: #7a4b00;
+      --holiday-bg: linear-gradient(135deg, #fff0f4, #ffcadd);
+      --holiday-text: #89193c;
+    }
 
-    </style>
+    body.dark {
+      --bg-color: #1e1e1e;
+      --text-color: #f0f0f0;
+      --card-bg: #2a2a2a;
+      --header-bg: #444;
+      --header-text: #eee;
+      --border-color: #555;
+      --shabbat-bg: linear-gradient(135deg, #5b3c00, #b27900);
+      --shabbat-text: #fff;
+      --holiday-bg: linear-gradient(135deg, #64032f, #d63280);
+      --holiday-text: #fff;
+    }
+
+    body {
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Assistant', sans-serif;
+      margin: 0;
+      padding: 0 6vw;
+    }
+
+    h1, h2 {
+      text-align: center;
+      color: var(--header-text);
+    }
+
+    h1 {
+      font-size: 2em;
+      margin-top: 1em;
+      margin-bottom: 0.3em;
+    }
+
+    h2 {
+      font-size: 1.3em;
+      margin-top: 1.4em;
+      margin-bottom: 0.5em;
+    }
+
+    p {
+      text-align: center;
+      color: var(--text-color);
+      margin-bottom: 1em;
+    }
+
+    .theme-toggle {
+      display: block;
+      margin: 10px auto;
+      padding: 8px 16px;
+      background: var(--header-bg);
+      color: var(--header-text);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: var(--card-bg);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 2px 14px rgba(0, 0, 0, 0.08);
+      margin-bottom: 30px;
+      table-layout: fixed;
+    }
+
+    th, td {
+      height: 90px;
+      min-height: 90px;
+      padding: 10px;
+      text-align: center;
+      vertical-align: top;
+      border: 1px solid var(--border-color);
+      box-sizing: border-box;
+      word-wrap: break-word;
+    }
+
+    th {
+      background: var(--header-bg);
+      color: var(--header-text);
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+
+    td {
+      background: var(--card-bg);
+      border-radius: 12px;
+      transition: background 0.2s ease-in-out;
+    }
+
+    td:hover {
+      background: #eef8ff;
+    }
+
+    .not-in-month {
+      background-color: #f0f2f5;
+      color: #aaa;
+    }
+
+    .day-number {
+      font-weight: bold;
+      font-size: 1.2em;
+      color: #2980b9;
+      margin-bottom: 4px;
+    }
+
+    .label {
+      font-size: 0.95em;
+      font-weight: bold;
+      color: #c0392b;
+    }
+
+    .study {
+      font-size: 0.9em;
+      color: #27ae60;
+      margin-top: 4px;
+    }
+
+    .shabbat {
+      background: var(--shabbat-bg) !important;
+      color: var(--shabbat-text) !important;
+    }
+
+    .holiday {
+      background: var(--holiday-bg) !important;
+      color: var(--holiday-text) !important;
+      border: 2px solid #f6a5b4;
+    }
+
+    .shabbat.holiday {
+      background: linear-gradient(135deg, #ffe8f5 60%, #ffe4bd 100%) !important;
+      color: #fff !important;
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 0 3vw; }
+      th, td { font-size: 0.9em; height: 70px; }
+    }
+  </style>
 </head>
 <body>
-    <div class="bookmark">
-        <h1>{{ title }}</h1>
-        <h2>{{ date_range }}</h2>
+  <button class="theme-toggle" onclick="document.body.classList.toggle('dark')">
+    החלף מצב תצוגה
+  </button>
 
-        {% for month_data in monthly_schedule %}
-        <h2>{{ month_data.month_name }}</h2>
-        <table class="month-table">
-            <thead>
-                <tr>
-                    <th>ראשון</th>
-                    <th>שני</th>
-                    <th>שלישי</th>
-                    <th>רביעי</th>
-                    <th>חמישי</th>
-                    <th>שישי</th>
-                    <th>שבת</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for week in month_data.weeks %}
-                <tr>
-                    {% for day in week %}
-                    <td class="day-cell {% if not day.is_in_month %}not-in-month{% endif %}">
-                        {% if day.hebrew_date %}
-                            <div class="hebrew-date">{{ day.hebrew_date }}</div>
-                            <div class="hebrew-day-number">{{ day.hebrew_day_number }}</div>
-                            {% if day.study_portion %}
-                                <div class="study-portion">{{ day.study_portion }}</div>
-                            {% endif %}
-                        {% endif %}
-                    </td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+  <h1>{{ title }}</h1>
+  <p>תאריכים: {{ date_range }}</p>
+
+  {% for month_data in monthly_schedule %}
+    <h2>{{ month_data.month_name }}</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ראשון</th>
+          <th>שני</th>
+          <th>שלישי</th>
+          <th>רביעי</th>
+          <th>חמישי</th>
+          <th>שישי</th>
+          <th>שבת</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in month_data.weeks %}
+          <tr>
+            {% for day in week %}
+              <td class="{% set cls = [] %}
+                         {% if not day.is_in_month %}{{ cls.append('not-in-month') }}{% endif %}
+                         {% if day.is_shabbat %}{{ cls.append('shabbat') }}{% endif %}
+                         {% if day.is_holiday %}{{ cls.append('holiday') }}{% endif %}
+                         {{ ' '.join(cls) }}">
+                {% if day.hebrew_date %}
+                  <div class="day-number">{{ day.hebrew_day_number }}</div>
+                  {% if day.label %}
+                    <div class="label">{{ day.label }}</div>
+                  {% endif %}
+                  {% if day.study_portion %}
+                    <div class="study">{{ day.study_portion }}</div>
+                  {% else %}
+                    &nbsp;
+                  {% endif %}
+                {% else %}
+                  &nbsp;
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
         {% endfor %}
-    </div>
+      </tbody>
+    </table>
+  {% endfor %}
 </body>
 </html>
