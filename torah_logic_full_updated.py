@@ -534,7 +534,7 @@ def write_bookmark_html(titles_list, mode, start_date, end_date, tree_data, no_s
 
     # טמפלט Jinja2
     env = Environment(loader=FileSystemLoader(os.getcwd()))
-    tpl = env.get_template('bookmark_template_enhanced1.html')
+    tpl = env.get_template('bookmark_template.html')
     html = tpl.render(
         title=generate_smart_filename(titles_list, mode, start_date, end_date, tree_data, "html").replace('.html', ''),
         date_range=f"{start_date:%d/%m/%Y} - {end_date:%d/%m/%Y}",
