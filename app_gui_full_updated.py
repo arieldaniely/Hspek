@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import locale
 import os
 
-from torah_logic_full_updated3 import (
+from torah_logic_full_updated import (
     load_data, get_length_from_node, has_relevant_data_recursive,
     calculate_study_days, write_ics_file,
     write_bookmark_html
