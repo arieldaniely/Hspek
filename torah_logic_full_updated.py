@@ -472,43 +472,44 @@ def write_bookmark_html(titles_list, mode, start_date, end_date, tree_data, no_s
         print("אזהרה: לא נוצר לוח לימודים.")
         return None
 
-    # מיפוי לימוד לתאריכים
     study_map = {item["date"]: item["description"] for item in schedule}
 
-    # בניית לוח לפי חודשים
-    monthly_schedule = []
-    cur = date(start_date.year, start_date.month, 1)
-    end_last_day = date(end_date.year, end_date.month, 1)
-    while cur <= end_last_day:
-        # חודש עברי (פיילואך)
-        h_month_start = dates.GregorianDate(cur.year, cur.month, 1).to_heb()
-        month_name_he = hebrewcal.Month(h_month_start.year, h_month_start.month).month_name(True)
-        year_str = h_month_start.hebrew_date_string(True).split()[-1]  # למשל ה׳תשפ״ו
+    h_start = dates.HebrewDate.from_pydate(start_date)
+    h_end = dates.HebrewDate.from_pydate(end_date)
+    cur_h = dates.HebrewDate(h_start.year, h_start.month, 1)
 
+    monthly_schedule = []
+
+    while cur_h <= h_end:
+        month_name_he = hebrewcal.Month(cur_h.year, cur_h.month).month_name(True)
+        year_str = cur_h.hebrew_date_string(True).split()[-1]
         month_data = {"month_name": f"{month_name_he} {year_str}", "weeks": []}
 
-        # תחילת השבוע (ראשון)
-        delta = (cur.weekday() + 1) % 7
-        week_start = cur - timedelta(days=delta)
+        g_first_day = cur_h.to_greg().to_pydate()
+        days_from_sunday = (g_first_day.weekday() + 1) % 7
+        week_start = g_first_day - timedelta(days=days_from_sunday)
 
-        finished = False
-        while not finished:
+        # מציאת היום האחרון של החודש העברי הנוכחי
+        last_day_h = dates.HebrewDate(cur_h.year, cur_h.month, len(hebrewcal.Month(cur_h.year, cur_h.month)))
+        last_day_g = last_day_h.to_greg().to_pydate()
+
+        # שבת שאחרי סוף החודש
+        days_to_saturday = (5 - last_day_g.weekday()) % 7
+        schedule_end_date = last_day_g + timedelta(days=days_to_saturday)
+
+        current_week_start = week_start
+        while current_week_start <= schedule_end_date:
             week = []
             for i in range(7):
-                d = week_start + timedelta(days=i)
-                h_d = dates.GregorianDate(d.year, d.month, d.day).to_heb()
-                is_in_month = (d.month == cur.month and d.year == cur.year)
+                current_day = current_week_start + timedelta(days=i)
+                g_date = dates.GregorianDate(current_day.year, current_day.month, current_day.day)
+                h_d = g_date.to_heb()
 
+                is_in_month = (h_d.month == cur_h.month and h_d.year == cur_h.year)
                 hebrew_day_number = h_d.hebrew_day()
-                hebrew_date = h_d.hebrew_date_string(True)  # 'י״ד אדר ה׳תשפ״א'
-
-                # חגים
+                hebrew_date = h_d.hebrew_date_string(True)
                 holiday = h_d.holiday(hebrew=True)
-                # פרשת שבוע בשבת
-                parsha = (
-                    parshios.getparsha_string(dates.GregorianDate(d.year, d.month, d.day), hebrew=True, israel=True)
-                    if d.weekday() == 5 else None
-                )
+                parsha = parshios.getparsha_string(g_date, hebrew=True, israel=True) if current_day.weekday() == 5 else None
                 label = holiday or parsha or ""
 
                 week.append({
@@ -516,24 +517,20 @@ def write_bookmark_html(titles_list, mode, start_date, end_date, tree_data, no_s
                     "hebrew_date": hebrew_date if is_in_month else "",
                     "hebrew_day_number": hebrew_day_number if is_in_month else "",
                     "label": label if is_in_month else "",
-                    "study_portion": study_map.get(d, "") if is_in_month else "",
-                    "is_shabbat": d.weekday() == 5 if is_in_month else False,       # הוסף שדה זה
-                    "is_holiday": bool(holiday) if is_in_month else False           # הוסף שדה זה
+                    "study_portion": study_map.get(current_day, "") if is_in_month else "",
+                    "is_shabbat": current_day.weekday() == 5 if is_in_month else False,
+                    "is_holiday": bool(holiday) if is_in_month else False
                 })
-
-                # סיום החודש?
-                if d.month != cur.month and d > cur:
-                    finished = True
             month_data["weeks"].append(week)
-            week_start += timedelta(weeks=1)
+            current_week_start += timedelta(weeks=1)
+
         monthly_schedule.append(month_data)
-        # חודש הבא
-        y, m = cur.year, cur.month
-        if m == 12:
-            y, m = y + 1, 1
+
+        # מעבר לחודש העברי הבא
+        if cur_h.month == 13 or (cur_h.month == 12 and not hebrewcal.Year(cur_h.year).leap):
+            cur_h = dates.HebrewDate(cur_h.year + 1, 1, 1)
         else:
-            m += 1
-        cur = date(y, m, 1)
+            cur_h = dates.HebrewDate(cur_h.year, cur_h.month + 1, 1)
 
     # טמפלט Jinja2
     env = Environment(loader=FileSystemLoader(os.getcwd()))
