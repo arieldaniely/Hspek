@@ -2,15 +2,15 @@ from datetime import date, timedelta
 from ics import Calendar, Event
 import json
 import os
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, quote
 
 from pyluach import dates, hebrewcal, parshios
 from jinja2 import Environment, FileSystemLoader
 from collections import defaultdict
 
 # כתובת ברירת מחדל לפתיחת חומר הלימוד היומי
-# הקישור נבנה כך שיחפש את תיאור הלימוד היומי באתר ספריא
-DEFAULT_LESSON_LINK = "https://www.sefaria.org/search?q={desc}"
+# {ref} מוחלף בהפניה המדויקת בספריא (לדוגמה "בראשית.א-ב")
+DEFAULT_LESSON_LINK = "https://www.sefaria.org.il/{ref}"
 
 # ==================== עזרות גימטריה ====================
 class Gematria:
@@ -622,7 +622,11 @@ def _generate_study_schedule(
         units_per_day (int, optional): מספר יחידות לימוד ביום (במצב הספק קבוע).
                                        אם None, הלימוד מחולק על פני טווח התאריכים.
     Returns:
-        list[dict]: רשימת אירועי לימוד, כל אירוע הוא מילון עם "date" ו-"description".
+        list[dict]: רשימת אירועי לימוד. כל פריט מכיל:
+            - ``date``: התאריך הגרגוריאני.
+            - ``description``: תיאור הלימוד ליום.
+            - ``first_unit`` ו-``last_unit``: פרטי היחידות הפותחות והחותמות
+              את הלימוד באותו יום.
     """
     schedule = []
 
@@ -642,22 +646,36 @@ def _generate_study_schedule(
                 hebrew_num = _convert_int_to_hebrew_gematria(unit_num)
                 if mode == "עמודים":
                     processed_units.append({
-                        "book_display_name": book_name, "unit_type": "עמוד",
-                        "unit_display_name": f"{hebrew_num}.", "sort_key": unit_num * 2 - 1 # עמוד א'
+                        "book_display_name": book_name,
+                        "unit_type": "עמוד",
+                        "unit_display_name": f"{hebrew_num}.",
+                        "sort_key": unit_num * 2 - 1,  # עמוד א'
+                        "unit_num_int": unit_num,
+                        "side": "a",
                     })
                     processed_units.append({
-                        "book_display_name": book_name, "unit_type": "עמוד",
-                        "unit_display_name": f"{hebrew_num}:", "sort_key": unit_num * 2  # עמוד ב'
+                        "book_display_name": book_name,
+                        "unit_type": "עמוד",
+                        "unit_display_name": f"{hebrew_num}:",
+                        "sort_key": unit_num * 2,  # עמוד ב'
+                        "unit_num_int": unit_num,
+                        "side": "b",
                     })
                 elif mode == "דפים":
                     processed_units.append({
-                        "book_display_name": book_name, "unit_type": "דף",
-                        "unit_display_name": hebrew_num, "sort_key": unit_num
+                        "book_display_name": book_name,
+                        "unit_type": "דף",
+                        "unit_display_name": hebrew_num,
+                        "sort_key": unit_num,
+                        "unit_num_int": unit_num,
                     })
                 elif mode == "משניות":
                     processed_units.append({
-                        "book_display_name": book_name, "unit_type": "משנה",
-                        "unit_display_name": hebrew_num, "sort_key": unit_num
+                        "book_display_name": book_name,
+                        "unit_type": "משנה",
+                        "unit_display_name": hebrew_num,
+                        "sort_key": unit_num,
+                        "unit_num_int": unit_num,
                     })
             processed_units.sort(key=lambda x: (x["book_display_name"], x["sort_key"])) # מיון היחידות
             all_units = processed_units
@@ -687,7 +705,12 @@ def _generate_study_schedule(
                     todays_units = all_units[unit_idx:unit_idx + num_today]
                     first_unit, last_unit = todays_units[0], todays_units[-1]
                     desc = build_description(first_unit, last_unit, mode)
-                    schedule.append({"date": current_date, "description": desc})
+                    schedule.append({
+                        "date": current_date,
+                        "description": desc,
+                        "first_unit": first_unit,
+                        "last_unit": last_unit,
+                    })
                     unit_idx += num_today
                 day_idx += 1 # קדם אינדקס יום לימוד
             current_date += timedelta(days=1)
@@ -699,7 +722,12 @@ def _generate_study_schedule(
                 todays_units = all_units[unit_idx:unit_idx + units_per_day]
                 first_unit, last_unit = todays_units[0], todays_units[-1]
                 desc = build_description(first_unit, last_unit, mode)
-                schedule.append({"date": current_date, "description": desc})
+                schedule.append({
+                    "date": current_date,
+                    "description": desc,
+                    "first_unit": first_unit,
+                    "last_unit": last_unit,
+                })
                 unit_idx += len(todays_units)
             current_date += timedelta(days=1)
 
@@ -734,6 +762,63 @@ def build_description(first_unit, last_unit, mode):
             desc = f"מ-{first_unit['book_display_name']} {first_unit['unit_type']} {first_unit['unit_display_name']} עד {last_unit['book_display_name']} {last_unit['unit_type']} {last_unit['unit_display_name']}"
     return desc
 
+def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | None:
+    """Construct a Sefaria reference for the study portion.
+
+    If the range spans multiple books, ``None`` is returned.
+    """
+
+    def extract(unit):
+        parts = unit["book_display_name"].split(" / ")
+        chapter = None
+        book = parts[-1]
+        if parts[-1].startswith("פרק "):
+            chapter = parts[-1].split()[-1]
+            if len(parts) >= 2:
+                book = parts[-2]
+        return book, chapter
+
+    start_book, start_chap = extract(first_unit)
+    end_book, end_chap = extract(last_unit)
+    if start_book != end_book:
+        return None
+
+    if mode == "פרקים":
+        s = first_unit["chapter_name"].split()[-1]
+        e = last_unit["chapter_name"].split()[-1]
+        return f"{start_book}.{s}" if s == e else f"{start_book}.{s}-{e}"
+
+    if mode == "משניות":
+        s_num = first_unit.get("unit_num_int")
+        e_num = last_unit.get("unit_num_int")
+        if None in (s_num, e_num, start_chap, end_chap):
+            return None
+        if start_chap == end_chap:
+            if s_num == e_num:
+                return f"{start_book}.{start_chap}.{s_num}"
+            return f"{start_book}.{start_chap}.{s_num}-{e_num}"
+        return f"{start_book}.{start_chap}.{s_num}-{end_chap}.{e_num}"
+
+    if mode == "דפים":
+        s_num = first_unit.get("unit_num_int")
+        e_num = last_unit.get("unit_num_int")
+        if None in (s_num, e_num):
+            return None
+        return f"{start_book}.{s_num}a-{e_num}b"
+
+    if mode == "עמודים":
+        s_num = first_unit.get("unit_num_int")
+        e_num = last_unit.get("unit_num_int")
+        s_side = first_unit.get("side")
+        e_side = last_unit.get("side")
+        if None in (s_num, e_num, s_side, e_side):
+            return None
+        start_ref = f"{s_num}{s_side}"
+        end_ref = f"{e_num}{e_side}"
+        return f"{start_book}.{start_ref}" if start_ref == end_ref else f"{start_book}.{start_ref}-{end_ref}"
+
+    return None
+
 # ==================== יצירת ICS ====================
 def write_ics_file(
     titles_list,
@@ -757,9 +842,8 @@ def write_ics_file(
         no_study_weekdays_set (set[int]): קבוצת ימי חופשה שבועיים.
         units_per_day (int, optional): הספק יומי (אם רלוונטי).
         link_template (str, optional):
-            תבנית קישור לחומר הלימוד היומי. ניתן להשתמש במשתנים
-            ``{date}`` ו-``{desc}`` לבניית הקישור.
-            ברירת המחדל היא DEFAULT_LESSON_LINK.
+            תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
+            ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-ICS שנוצר, או None אם אירעה שגיאה.
@@ -788,16 +872,15 @@ def write_ics_file(
         event_base_name += " ועוד"
     # יצירת אירועים בלוח השנה
     for day_data in schedule:
-        link = link_template.format(
-            date=day_data['date'].isoformat(),
-            desc=quote_plus(day_data['description']),
-        )
+        ref = build_sefaria_ref(day_data["first_unit"], day_data["last_unit"], mode)
+        link = link_template.format(ref=quote(ref, safe='.-_%')) if ref else ""
         e = Event()
         e.name = event_base_name
         e.begin = day_data['date'].strftime('%Y-%m-%d')
         e.make_all_day()
-        e.description = f"{day_data['description']}\n{link}"
-        e.url = link
+        e.description = day_data['description'] + (f"\n{link}" if link else "")
+        if link:
+            e.url = link
         cal.events.add(e)
 
     # יצירת שם קובץ חכם
@@ -835,9 +918,8 @@ def write_bookmark_html(
         no_study_weekdays_set (set[int]): קבוצת ימי חופשה שבועיים.
         units_per_day (int, optional): הספק יומי (אם רלוונטי).
         link_template (str, optional):
-            תבנית קישור לחומר הלימוד היומי. ניתן להשתמש במשתנים
-            ``{date}`` ו-``{desc}`` לבניית הקישור.
-            ברירת המחדל היא DEFAULT_LESSON_LINK.
+            תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
+            ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-HTML שנוצר, או None אם אירעה שגיאה.
@@ -854,9 +936,9 @@ def write_bookmark_html(
         item["date"]: {
             "desc": item["description"],
             "link": link_template.format(
-                date=item["date"].isoformat(),
-                desc=quote_plus(item["description"]),
-            ),
+                ref=quote(build_sefaria_ref(item["first_unit"], item["last_unit"], mode), safe='.-_%'))
+                if build_sefaria_ref(item["first_unit"], item["last_unit"], mode)
+                else "",
         }
         for item in schedule
     }
