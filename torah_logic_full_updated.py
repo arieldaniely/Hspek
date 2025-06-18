@@ -2,10 +2,15 @@ from datetime import date, timedelta
 from ics import Calendar, Event
 import json
 import os
+from urllib.parse import quote_plus
 
 from pyluach import dates, hebrewcal, parshios
 from jinja2 import Environment, FileSystemLoader
 from collections import defaultdict
+
+# כתובת ברירת מחדל לפתיחת חומר הלימוד היומי
+# הקישור נבנה כך שיחפש את תיאור הלימוד היומי באתר ספריא
+DEFAULT_LESSON_LINK = "https://www.sefaria.org/search?q={desc}"
 
 # ==================== עזרות גימטריה ====================
 class Gematria:
@@ -730,7 +735,16 @@ def build_description(first_unit, last_unit, mode):
     return desc
 
 # ==================== יצירת ICS ====================
-def write_ics_file(titles_list, mode, start_date, end_date, tree_data, no_study_weekdays_set, units_per_day=None):
+def write_ics_file(
+    titles_list,
+    mode,
+    start_date,
+    end_date,
+    tree_data,
+    no_study_weekdays_set,
+    units_per_day=None,
+    link_template: str = DEFAULT_LESSON_LINK,
+):
     """
     יוצר קובץ ICS (קובץ לוח שנה) המכיל את אירועי הלימוד.
 
@@ -742,11 +756,23 @@ def write_ics_file(titles_list, mode, start_date, end_date, tree_data, no_study_
         tree_data (dict): עץ הנתונים המלא.
         no_study_weekdays_set (set[int]): קבוצת ימי חופשה שבועיים.
         units_per_day (int, optional): הספק יומי (אם רלוונטי).
+        link_template (str, optional):
+            תבנית קישור לחומר הלימוד היומי. ניתן להשתמש במשתנים
+            ``{date}`` ו-``{desc}`` לבניית הקישור.
+            ברירת המחדל היא DEFAULT_LESSON_LINK.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-ICS שנוצר, או None אם אירעה שגיאה.
     """
-    schedule = _generate_study_schedule(start_date, end_date, titles_list, mode, tree_data, no_study_weekdays_set, units_per_day)
+    schedule = _generate_study_schedule(
+        start_date,
+        end_date,
+        titles_list,
+        mode,
+        tree_data,
+        no_study_weekdays_set,
+        units_per_day,
+    )
 
     if not schedule:
         print("אזהרה: לא נוצר לוח לימודים.")
@@ -762,11 +788,16 @@ def write_ics_file(titles_list, mode, start_date, end_date, tree_data, no_study_
         event_base_name += " ועוד"
     # יצירת אירועים בלוח השנה
     for day_data in schedule:
+        link = link_template.format(
+            date=day_data['date'].isoformat(),
+            desc=quote_plus(day_data['description']),
+        )
         e = Event()
         e.name = event_base_name
         e.begin = day_data['date'].strftime('%Y-%m-%d')
         e.make_all_day()
-        e.description = day_data['description']
+        e.description = f"{day_data['description']}\n{link}"
+        e.url = link
         cal.events.add(e)
 
     # יצירת שם קובץ חכם
@@ -782,7 +813,16 @@ def write_ics_file(titles_list, mode, start_date, end_date, tree_data, no_study_
         print(f"שגיאה בכתיבת קובץ ICS: {e}")
         return None
 
-def write_bookmark_html(titles_list, mode, start_date, end_date, tree_data, no_study_weekdays_set, units_per_day=None):
+def write_bookmark_html(
+    titles_list,
+    mode,
+    start_date,
+    end_date,
+    tree_data,
+    no_study_weekdays_set,
+    units_per_day=None,
+    link_template: str = DEFAULT_LESSON_LINK,
+):
     """
     יוצר קובץ HTML (דף סימנייה) המציג את לוח הלימודים בצורה חודשית.
 
@@ -794,6 +834,10 @@ def write_bookmark_html(titles_list, mode, start_date, end_date, tree_data, no_s
         tree_data (dict): עץ הנתונים המלא.
         no_study_weekdays_set (set[int]): קבוצת ימי חופשה שבועיים.
         units_per_day (int, optional): הספק יומי (אם רלוונטי).
+        link_template (str, optional):
+            תבנית קישור לחומר הלימוד היומי. ניתן להשתמש במשתנים
+            ``{date}`` ו-``{desc}`` לבניית הקישור.
+            ברירת המחדל היא DEFAULT_LESSON_LINK.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-HTML שנוצר, או None אם אירעה שגיאה.
@@ -805,8 +849,17 @@ def write_bookmark_html(titles_list, mode, start_date, end_date, tree_data, no_s
         return None
 
     actual_end_date = schedule[-1]["date"] if units_per_day else end_date
-    # מיפוי תאריכים לתיאורי הלימוד שלהם
-    study_map = {item["date"]: item["description"] for item in schedule}
+    # מיפוי תאריכים לתיאורי הלימוד והקישורים שלהם
+    study_map = {
+        item["date"]: {
+            "desc": item["description"],
+            "link": link_template.format(
+                date=item["date"].isoformat(),
+                desc=quote_plus(item["description"]),
+            ),
+        }
+        for item in schedule
+    }
 
     # אוספים את כל הימים בטווח, וממפים אותם לשנה וחודש עברי
     day_map = defaultdict(list)
@@ -864,12 +917,14 @@ def write_bookmark_html(titles_list, mode, start_date, end_date, tree_data, no_s
 
                     parsha = parshios.getparsha_string(g_date, hebrew=True, israel=True) if current_day.weekday() == 5 and is_in_month else None
                     label = holiday or parsha or ""
+                    study_info = study_map.get(current_day)
                     week.append({
                         "is_in_month": is_in_month,
                         "hebrew_date": hebrew_date,
                         "hebrew_day_number": hebrew_day_number,
                         "label": label,
-                        "study_portion": study_map.get(current_day, "") if is_in_month else "",
+                        "study_portion": study_info["desc"] if is_in_month and study_info else "",
+                        "link": study_info["link"] if is_in_month and study_info else "",
                         "is_shabbat": current_day.weekday() == 5 if is_in_month else False,
                         "is_holiday": bool(holiday) if is_in_month else False
                     })

@@ -138,6 +138,12 @@
       margin-top: 4px;
     }
 
+    .study-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
     .shabbat {
       background: var(--shabbat-bg) !important;
       color: var(--shabbat-text) !important;
@@ -197,7 +203,13 @@
                     <div class="label">{{ day.label }}</div>
                   {% endif %}
                   {% if day.study_portion %}
-                    <div class="study">{{ day.study_portion }}</div>
+                    {% if day.link %}
+                      <a href="{{ day.link }}" class="study-link">
+                        <div class="study">{{ day.study_portion }}</div>
+                      </a>
+                    {% else %}
+                      <div class="study">{{ day.study_portion }}</div>
+                    {% endif %}
                   {% else %}
                     &nbsp;
                   {% endif %}
