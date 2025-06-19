@@ -221,12 +221,14 @@ class TorahTreeApp(ctk.CTk):
         # לחצן קטן לפתיחת תפריט ההגדרות הצדדי
         ctk.CTkButton(
             button_frame,
-            text="⚙",
+            text="⚙ הגדרות מיוחדות",
             width=28,
             height=28,
             fg_color="white",
             text_color="black",
             command=self.toggle_settings_panel,
+            border_width=0.6,      # הוספה: עובי מסגרת
+            border_color="black"
         ).grid(row=1, column=0, columnspan=2, sticky="e", pady=(6, 0))
         # קישור אירוע בחירה בעץ לפונקציה המתאימה
 
