@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from ics import Calendar, Event, DisplayAlarm
+from ics import Calendar, Event
 import json
 import os
 from urllib.parse import quote_plus, quote
@@ -763,100 +763,75 @@ def build_description(first_unit, last_unit, mode):
     return desc
 
 def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | None:
-    """Construct a Sefaria reference for the study portion.
-
-    If the range spans multiple books, ``None`` is returned.
-    """
-    
+    """Construct a Sefaria-compatible reference."""
     with open("sefaria_masechet_map.json", "r", encoding="utf-8") as f:
         SEFARIA_MASECHET_MAP = json.load(f)
 
-    def extract(unit_data):
-        """Extracts book and chapter (as Gematria string like 'א') from unit_data."""
-        book_display_name = unit_data.get("book_display_name", "")
-        parts = book_display_name.split(" / ")
+    def extract(unit):
+        name = unit.get("book_display_name", "")
+        parts = name.split(" / ")
+        book = chap = None
+        if parts:
+            if parts[-1].startswith("פרק "):
+                chap = parts[-1].split()[-1]
+                book = parts[-2] if len(parts) > 1 else None
+            else:
+                book = parts[-1]
+                if mode == "פרקים" and "chapter_name" in unit:
+                    chap = unit["chapter_name"].split()[-1]
+        return book, chap
 
-        extracted_book = None
-        extracted_chap_gematria = None
-
-        if not parts:
-            return None, None
-
-        if parts[-1].startswith("פרק "):  # e.g., "... / מסכת ברכות / פרק א"
-            if len(parts) >= 2:
-                extracted_book = parts[-2]  # "מסכת ברכות"
-            extracted_chap_gematria = parts[-1].split()[-1]
-        else:
-            extracted_book = parts[-1]
-            if mode == "פרקים" and "chapter_name" in unit_data:
-                extracted_chap_gematria = unit_data["chapter_name"].split()[-1]
-        return extracted_book, extracted_chap_gematria
-
-    # Extract raw book and chapter names
-    start_book_raw, start_chap_gematria = extract(first_unit)
-    end_book_raw, end_chap_gematria = extract(last_unit)
-
-    if not start_book_raw:
+    sb, sch = extract(first_unit)
+    eb, ech = extract(last_unit)
+    if not sb or (eb and eb != sb):
         return None
 
-    # בסיס לשם הספר כפי שספריא דורשת
-    sefaria_book_name = start_book_raw
+    book = sb
+    if mode in ("דפים", "עמודים"):
+        masechet = book.replace("מסכת ", "")
+        book = SEFARIA_MASECHET_MAP.get(masechet)
+        if not book:
+            return None
+    elif mode == "משניות":
+        if not book.startswith("משנה_"):
+            book = f"משנה_{book}"
 
-    if mode == "משניות":
-        if not start_book_raw.startswith("משנה_"):
-            sefaria_book_name = f"משנה_{start_book_raw}"
-    elif mode in {"דפים", "עמודים"}:
-        # הסר "מסכת " אם יש, והמרה לשם האנגלי בספריא
-        masechet_he = start_book_raw.replace("מסכת ", "")
-        sefaria_book_name = SEFARIA_MASECHET_MAP.get(masechet_he)
-        if not sefaria_book_name:
-            return None  # שם מסכת לא ידוע
-
-    # מניעת טווח בין ספרים שונים
-    if start_book_raw != end_book_raw and end_book_raw is not None:
-        return None
-
-    # ----------------- פרקים -----------------
     if mode == "פרקים":
-        s_chap = first_unit.get("chapter_name", "").split()[-1]
-        e_chap = last_unit.get("chapter_name", "").split()[-1]
-        if not s_chap or not e_chap:
+        s = first_unit.get("chapter_name", "").split()[-1]
+        e = last_unit.get("chapter_name", "").split()[-1]
+        if not s or not e:
             return None
-        return f"{sefaria_book_name}.{s_chap}" if s_chap == e_chap else f"{sefaria_book_name}.{s_chap}-{e_chap}"
+        ref = f"{book}.{s}" if s == e else f"{book}.{s}-{e}"
+        return ref 
 
-    # ----------------- משניות -----------------
     if mode == "משניות":
-        s_mishna = first_unit.get("unit_num_int")
-        e_mishna = last_unit.get("unit_num_int")
-        if None in (s_mishna, e_mishna) or not start_chap_gematria:
+        s_m, e_m = first_unit.get("unit_num_int"), last_unit.get("unit_num_int")
+        if sch is None or s_m is None or e_m is None:
             return None
-        if start_chap_gematria == end_chap_gematria:
-            if s_mishna == e_mishna:
-                return f"{sefaria_book_name}.{start_chap_gematria}.{s_mishna}"
-            return f"{sefaria_book_name}.{start_chap_gematria}.{s_mishna}-{e_mishna}"
-        if not end_chap_gematria:
-            return None
-        return f"{sefaria_book_name}.{start_chap_gematria}.{s_mishna}-{end_chap_gematria}.{e_mishna}"
+        if sch == ech:
+            ref = f"{book}.{sch}.{s_m}" if s_m == e_m else f"{book}.{sch}.{s_m}-{e_m}"
+        else:
+            if ech is None:
+                return None
+            ref = f"{book}.{sch}.{s_m}-{ech}.{e_m}"
+        return ref 
 
-    # ----------------- דפים -----------------
     if mode == "דפים":
-        s_daf = first_unit.get("unit_num_int")
-        e_daf = last_unit.get("unit_num_int")
-        if None in (s_daf, e_daf):
+        s_d, e_d = first_unit.get("unit_num_int"), last_unit.get("unit_num_int")
+        if s_d is None or e_d is None:
             return None
-        return f"{sefaria_book_name}.{s_daf}a" if s_daf == e_daf else f"{sefaria_book_name}.{s_daf}a-{e_daf}b"
+        ref = f"{book}.{s_d}a" if s_d == e_d else f"{book}.{s_d}a-{e_d}b"
+        return ref 
 
-    # ----------------- עמודים -----------------
     if mode == "עמודים":
-        s_num = first_unit.get("unit_num_int")
-        e_num = last_unit.get("unit_num_int")
-        s_side = first_unit.get("side")
-        e_side = last_unit.get("side")
-        if None in (s_num, e_num, s_side, e_side):
+        s_d, e_d = first_unit.get("unit_num_int"), last_unit.get("unit_num_int")
+        s_side, e_side = first_unit.get("side"), last_unit.get("side")
+        if None in (s_d, e_d, s_side, e_side):
             return None
-        s_ref = f"{s_num}{s_side}"
-        e_ref = f"{e_num}{e_side}"
-        return f"{sefaria_book_name}.{s_ref}" if s_ref == e_ref else f"{sefaria_book_name}.{s_ref}-{e_ref}"
+        start = f"{s_d}{s_side}"
+        end = f"{e_d}{e_side}"
+        ref = f"{book}.{start}" if start == end else f"{book}.{start}-{end}"
+        return ref 
 
     return None
 
@@ -870,7 +845,6 @@ def write_ics_file(
     no_study_weekdays_set,
     units_per_day=None,
     link_template: str = DEFAULT_LESSON_LINK,
-    alarm_minutes_before: int | None = None,
 ):
     """
     יוצר קובץ ICS (קובץ לוח שנה) המכיל את אירועי הלימוד.
@@ -886,9 +860,6 @@ def write_ics_file(
         link_template (str, optional):
             תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
-        alarm_minutes_before (int, optional):
-            מספר הדקות לפני תחילת האירוע בהן תופיע התראה בלוח שנה.
-            None לביטול הוספת התראה.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-ICS שנוצר, או None אם אירעה שגיאה.
@@ -926,8 +897,6 @@ def write_ics_file(
         e.description = day_data['description'] + (f"\n{link}" if link else "")
         if link:
             e.url = link
-        if alarm_minutes_before and alarm_minutes_before > 0:
-            e.alarms = [DisplayAlarm(trigger=timedelta(minutes=-alarm_minutes_before))]
         cal.events.add(e)
 
     # יצירת שם קובץ חכם
@@ -1095,8 +1064,7 @@ if __name__ == '__main__':
         start_date=start,
         end_date=end,
         tree_data=tree_data,
-        no_study_weekdays_set=example_no_study_days,
-        alarm_minutes_before=30
+        no_study_weekdays_set=example_no_study_days
     )
     print("-" * 20)
     write_bookmark_html(
