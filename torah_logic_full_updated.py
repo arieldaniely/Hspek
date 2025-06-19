@@ -2,10 +2,15 @@ from datetime import date, timedelta
 from ics import Calendar, Event
 import json
 import os
+from urllib.parse import quote_plus, quote
 
 from pyluach import dates, hebrewcal, parshios
 from jinja2 import Environment, FileSystemLoader
 from collections import defaultdict
+
+# כתובת ברירת מחדל לפתיחת חומר הלימוד היומי
+# {ref} מוחלף בהפניה המדויקת בספריא (לדוגמה "בראשית.א-ב")
+DEFAULT_LESSON_LINK = "https://www.sefaria.org.il/{ref}"
 
 # ==================== עזרות גימטריה ====================
 class Gematria:
@@ -617,7 +622,11 @@ def _generate_study_schedule(
         units_per_day (int, optional): מספר יחידות לימוד ביום (במצב הספק קבוע).
                                        אם None, הלימוד מחולק על פני טווח התאריכים.
     Returns:
-        list[dict]: רשימת אירועי לימוד, כל אירוע הוא מילון עם "date" ו-"description".
+        list[dict]: רשימת אירועי לימוד. כל פריט מכיל:
+            - ``date``: התאריך הגרגוריאני.
+            - ``description``: תיאור הלימוד ליום.
+            - ``first_unit`` ו-``last_unit``: פרטי היחידות הפותחות והחותמות
+              את הלימוד באותו יום.
     """
     schedule = []
 
@@ -637,24 +646,38 @@ def _generate_study_schedule(
                 hebrew_num = _convert_int_to_hebrew_gematria(unit_num)
                 if mode == "עמודים":
                     processed_units.append({
-                        "book_display_name": book_name, "unit_type": "עמוד",
-                        "unit_display_name": f"{hebrew_num}.", "sort_key": unit_num * 2 - 1 # עמוד א'
+                        "book_display_name": book_name,
+                        "unit_type": "עמוד",
+                        "unit_display_name": f"{hebrew_num}.",
+                        "sort_key": unit_num * 2 - 1,  # עמוד א'
+                        "unit_num_int": unit_num,
+                        "side": "a",
                     })
                     processed_units.append({
-                        "book_display_name": book_name, "unit_type": "עמוד",
-                        "unit_display_name": f"{hebrew_num}:", "sort_key": unit_num * 2  # עמוד ב'
+                        "book_display_name": book_name,
+                        "unit_type": "עמוד",
+                        "unit_display_name": f"{hebrew_num}:",
+                        "sort_key": unit_num * 2,  # עמוד ב'
+                        "unit_num_int": unit_num,
+                        "side": "b",
                     })
                 elif mode == "דפים":
                     processed_units.append({
-                        "book_display_name": book_name, "unit_type": "דף",
-                        "unit_display_name": hebrew_num, "sort_key": unit_num
+                        "book_display_name": book_name,
+                        "unit_type": "דף",
+                        "unit_display_name": hebrew_num,
+                        "sort_key": unit_num,
+                        "unit_num_int": unit_num,
                     })
                 elif mode == "משניות":
                     processed_units.append({
-                        "book_display_name": book_name, "unit_type": "משנה",
-                        "unit_display_name": hebrew_num, "sort_key": unit_num
+                        "book_display_name": book_name,
+                        "unit_type": "משנה",
+                        "unit_display_name": hebrew_num,
+                        "sort_key": unit_num,
+                        "unit_num_int": unit_num,
                     })
-            processed_units.sort(key=lambda x: (x["book_display_name"], x["sort_key"])) # מיון היחידות
+            # processed_units.sort(key=lambda x: (x["book_display_name"], x["sort_key"])) # מיון היחידות
             all_units = processed_units
 
     total_units = len(all_units)
@@ -682,7 +705,12 @@ def _generate_study_schedule(
                     todays_units = all_units[unit_idx:unit_idx + num_today]
                     first_unit, last_unit = todays_units[0], todays_units[-1]
                     desc = build_description(first_unit, last_unit, mode)
-                    schedule.append({"date": current_date, "description": desc})
+                    schedule.append({
+                        "date": current_date,
+                        "description": desc,
+                        "first_unit": first_unit,
+                        "last_unit": last_unit,
+                    })
                     unit_idx += num_today
                 day_idx += 1 # קדם אינדקס יום לימוד
             current_date += timedelta(days=1)
@@ -694,7 +722,12 @@ def _generate_study_schedule(
                 todays_units = all_units[unit_idx:unit_idx + units_per_day]
                 first_unit, last_unit = todays_units[0], todays_units[-1]
                 desc = build_description(first_unit, last_unit, mode)
-                schedule.append({"date": current_date, "description": desc})
+                schedule.append({
+                    "date": current_date,
+                    "description": desc,
+                    "first_unit": first_unit,
+                    "last_unit": last_unit,
+                })
                 unit_idx += len(todays_units)
             current_date += timedelta(days=1)
 
@@ -729,8 +762,115 @@ def build_description(first_unit, last_unit, mode):
             desc = f"מ-{first_unit['book_display_name']} {first_unit['unit_type']} {first_unit['unit_display_name']} עד {last_unit['book_display_name']} {last_unit['unit_type']} {last_unit['unit_display_name']}"
     return desc
 
+def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | None:
+    """Construct a Sefaria reference for the study portion.
+
+    If the range spans multiple books, ``None`` is returned.
+    """
+    
+    with open("sefaria_masechet_map.json", "r", encoding="utf-8") as f:
+        SEFARIA_MASECHET_MAP = json.load(f)
+
+    def extract(unit_data):
+        """Extracts book and chapter (as Gematria string like 'א') from unit_data."""
+        book_display_name = unit_data.get("book_display_name", "")
+        parts = book_display_name.split(" / ")
+
+        extracted_book = None
+        extracted_chap_gematria = None
+
+        if not parts:
+            return None, None
+
+        if parts[-1].startswith("פרק "):  # e.g., "... / מסכת ברכות / פרק א"
+            if len(parts) >= 2:
+                extracted_book = parts[-2]  # "מסכת ברכות"
+            extracted_chap_gematria = parts[-1].split()[-1]
+        else:
+            extracted_book = parts[-1]
+            if mode == "פרקים" and "chapter_name" in unit_data:
+                extracted_chap_gematria = unit_data["chapter_name"].split()[-1]
+        return extracted_book, extracted_chap_gematria
+
+    # Extract raw book and chapter names
+    start_book_raw, start_chap_gematria = extract(first_unit)
+    end_book_raw, end_chap_gematria = extract(last_unit)
+
+    if not start_book_raw:
+        return None
+
+    # בסיס לשם הספר כפי שספריא דורשת
+    sefaria_book_name = start_book_raw
+
+    if mode == "משניות":
+        if not start_book_raw.startswith("משנה_"):
+            sefaria_book_name = f"משנה_{start_book_raw}"
+    elif mode in {"דפים", "עמודים"}:
+        # הסר "מסכת " אם יש, והמרה לשם האנגלי בספריא
+        masechet_he = start_book_raw.replace("מסכת ", "")
+        sefaria_book_name = SEFARIA_MASECHET_MAP.get(masechet_he)
+        if not sefaria_book_name:
+            return None  # שם מסכת לא ידוע
+
+    # מניעת טווח בין ספרים שונים
+    if start_book_raw != end_book_raw and end_book_raw is not None:
+        return None
+
+    # ----------------- פרקים -----------------
+    if mode == "פרקים":
+        s_chap = first_unit.get("chapter_name", "").split()[-1]
+        e_chap = last_unit.get("chapter_name", "").split()[-1]
+        if not s_chap or not e_chap:
+            return None
+        return f"{sefaria_book_name}.{s_chap}" if s_chap == e_chap else f"{sefaria_book_name}.{s_chap}-{e_chap}"
+
+    # ----------------- משניות -----------------
+    if mode == "משניות":
+        s_mishna = first_unit.get("unit_num_int")
+        e_mishna = last_unit.get("unit_num_int")
+        if None in (s_mishna, e_mishna) or not start_chap_gematria:
+            return None
+        if start_chap_gematria == end_chap_gematria:
+            if s_mishna == e_mishna:
+                return f"{sefaria_book_name}.{start_chap_gematria}.{s_mishna}"
+            return f"{sefaria_book_name}.{start_chap_gematria}.{s_mishna}-{e_mishna}"
+        if not end_chap_gematria:
+            return None
+        return f"{sefaria_book_name}.{start_chap_gematria}.{s_mishna}-{end_chap_gematria}.{e_mishna}"
+
+    # ----------------- דפים -----------------
+    if mode == "דפים":
+        s_daf = first_unit.get("unit_num_int")
+        e_daf = last_unit.get("unit_num_int")
+        if None in (s_daf, e_daf):
+            return None
+        return f"{sefaria_book_name}.{s_daf}a" if s_daf == e_daf else f"{sefaria_book_name}.{s_daf}a-{e_daf}b"
+
+    # ----------------- עמודים -----------------
+    if mode == "עמודים":
+        s_num = first_unit.get("unit_num_int")
+        e_num = last_unit.get("unit_num_int")
+        s_side = first_unit.get("side")
+        e_side = last_unit.get("side")
+        if None in (s_num, e_num, s_side, e_side):
+            return None
+        s_ref = f"{s_num}{s_side}"
+        e_ref = f"{e_num}{e_side}"
+        return f"{sefaria_book_name}.{s_ref}" if s_ref == e_ref else f"{sefaria_book_name}.{s_ref}-{e_ref}"
+
+    return None
+
 # ==================== יצירת ICS ====================
-def write_ics_file(titles_list, mode, start_date, end_date, tree_data, no_study_weekdays_set, units_per_day=None):
+def write_ics_file(
+    titles_list,
+    mode,
+    start_date,
+    end_date,
+    tree_data,
+    no_study_weekdays_set,
+    units_per_day=None,
+    link_template: str = DEFAULT_LESSON_LINK,
+):
     """
     יוצר קובץ ICS (קובץ לוח שנה) המכיל את אירועי הלימוד.
 
@@ -742,11 +882,22 @@ def write_ics_file(titles_list, mode, start_date, end_date, tree_data, no_study_
         tree_data (dict): עץ הנתונים המלא.
         no_study_weekdays_set (set[int]): קבוצת ימי חופשה שבועיים.
         units_per_day (int, optional): הספק יומי (אם רלוונטי).
+        link_template (str, optional):
+            תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
+            ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-ICS שנוצר, או None אם אירעה שגיאה.
     """
-    schedule = _generate_study_schedule(start_date, end_date, titles_list, mode, tree_data, no_study_weekdays_set, units_per_day)
+    schedule = _generate_study_schedule(
+        start_date,
+        end_date,
+        titles_list,
+        mode,
+        tree_data,
+        no_study_weekdays_set,
+        units_per_day,
+    )
 
     if not schedule:
         print("אזהרה: לא נוצר לוח לימודים.")
@@ -762,11 +913,15 @@ def write_ics_file(titles_list, mode, start_date, end_date, tree_data, no_study_
         event_base_name += " ועוד"
     # יצירת אירועים בלוח השנה
     for day_data in schedule:
+        ref = build_sefaria_ref(day_data["first_unit"], day_data["last_unit"], mode)
+        link = link_template.format(ref=quote(ref, safe='.-_%')) if ref else ""
         e = Event()
         e.name = event_base_name
         e.begin = day_data['date'].strftime('%Y-%m-%d')
         e.make_all_day()
-        e.description = day_data['description']
+        e.description = day_data['description'] + (f"\n{link}" if link else "")
+        if link:
+            e.url = link
         cal.events.add(e)
 
     # יצירת שם קובץ חכם
@@ -782,7 +937,16 @@ def write_ics_file(titles_list, mode, start_date, end_date, tree_data, no_study_
         print(f"שגיאה בכתיבת קובץ ICS: {e}")
         return None
 
-def write_bookmark_html(titles_list, mode, start_date, end_date, tree_data, no_study_weekdays_set, units_per_day=None):
+def write_bookmark_html(
+    titles_list,
+    mode,
+    start_date,
+    end_date,
+    tree_data,
+    no_study_weekdays_set,
+    units_per_day=None,
+    link_template: str = DEFAULT_LESSON_LINK,
+):
     """
     יוצר קובץ HTML (דף סימנייה) המציג את לוח הלימודים בצורה חודשית.
 
@@ -794,6 +958,9 @@ def write_bookmark_html(titles_list, mode, start_date, end_date, tree_data, no_s
         tree_data (dict): עץ הנתונים המלא.
         no_study_weekdays_set (set[int]): קבוצת ימי חופשה שבועיים.
         units_per_day (int, optional): הספק יומי (אם רלוונטי).
+        link_template (str, optional):
+            תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
+            ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-HTML שנוצר, או None אם אירעה שגיאה.
@@ -805,8 +972,17 @@ def write_bookmark_html(titles_list, mode, start_date, end_date, tree_data, no_s
         return None
 
     actual_end_date = schedule[-1]["date"] if units_per_day else end_date
-    # מיפוי תאריכים לתיאורי הלימוד שלהם
-    study_map = {item["date"]: item["description"] for item in schedule}
+    # מיפוי תאריכים לתיאורי הלימוד והקישורים שלהם
+    study_map = {
+        item["date"]: {
+            "desc": item["description"],
+            "link": link_template.format(
+                ref=quote(build_sefaria_ref(item["first_unit"], item["last_unit"], mode), safe='.-_%'))
+                if build_sefaria_ref(item["first_unit"], item["last_unit"], mode)
+                else "",
+        }
+        for item in schedule
+    }
 
     # אוספים את כל הימים בטווח, וממפים אותם לשנה וחודש עברי
     day_map = defaultdict(list)
@@ -864,12 +1040,14 @@ def write_bookmark_html(titles_list, mode, start_date, end_date, tree_data, no_s
 
                     parsha = parshios.getparsha_string(g_date, hebrew=True, israel=True) if current_day.weekday() == 5 and is_in_month else None
                     label = holiday or parsha or ""
+                    study_info = study_map.get(current_day)
                     week.append({
                         "is_in_month": is_in_month,
                         "hebrew_date": hebrew_date,
                         "hebrew_day_number": hebrew_day_number,
                         "label": label,
-                        "study_portion": study_map.get(current_day, "") if is_in_month else "",
+                        "study_portion": study_info["desc"] if is_in_month and study_info else "",
+                        "link": study_info["link"] if is_in_month and study_info else "",
                         "is_shabbat": current_day.weekday() == 5 if is_in_month else False,
                         "is_holiday": bool(holiday) if is_in_month else False
                     })
