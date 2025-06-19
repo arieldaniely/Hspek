@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from ics import Calendar, Event
+from ics import Calendar, Event, DisplayAlarm
 import json
 import os
 from urllib.parse import quote_plus, quote
@@ -870,6 +870,7 @@ def write_ics_file(
     no_study_weekdays_set,
     units_per_day=None,
     link_template: str = DEFAULT_LESSON_LINK,
+    alarm_minutes_before: int | None = None,
 ):
     """
     יוצר קובץ ICS (קובץ לוח שנה) המכיל את אירועי הלימוד.
@@ -885,6 +886,9 @@ def write_ics_file(
         link_template (str, optional):
             תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
+        alarm_minutes_before (int, optional):
+            מספר הדקות לפני תחילת האירוע בהן תופיע התראה בלוח שנה.
+            None לביטול הוספת התראה.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-ICS שנוצר, או None אם אירעה שגיאה.
@@ -922,6 +926,8 @@ def write_ics_file(
         e.description = day_data['description'] + (f"\n{link}" if link else "")
         if link:
             e.url = link
+        if alarm_minutes_before and alarm_minutes_before > 0:
+            e.alarms = [DisplayAlarm(trigger=timedelta(minutes=-alarm_minutes_before))]
         cal.events.add(e)
 
     # יצירת שם קובץ חכם
@@ -1089,7 +1095,8 @@ if __name__ == '__main__':
         start_date=start,
         end_date=end,
         tree_data=tree_data,
-        no_study_weekdays_set=example_no_study_days
+        no_study_weekdays_set=example_no_study_days,
+        alarm_minutes_before=30
     )
     print("-" * 20)
     write_bookmark_html(

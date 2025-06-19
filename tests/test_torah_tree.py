@@ -6,7 +6,7 @@ import pytest
 
 
 def load_module():
-    path = Path(__file__).resolve().parents[1] / "יוצר לוח לימוד מעודכן.py"
+    path = Path(__file__).resolve().parents[1] / "torah_logic_full_updated.py"
 
     # Stub external GUI/ICS dependencies so the module can be imported
     if 'customtkinter' not in sys.modules:
@@ -33,6 +33,7 @@ def load_module():
         ics = types.ModuleType('ics')
         ics.Calendar = type('Calendar', (), {})
         ics.Event = type('Event', (), {})
+        ics.DisplayAlarm = type('DisplayAlarm', (), {})
         sys.modules['ics'] = ics
 
     if 'tkinter' not in sys.modules:
