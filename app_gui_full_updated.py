@@ -14,8 +14,9 @@ import os
 from torah_logic_full_updated import (
     load_data, get_length_from_node, has_relevant_data_recursive,
     calculate_study_days, write_ics_file,
-    write_bookmark_html
+    write_bookmark_html, Gematria, HEBREW_MONTH_NAMES
 )
+from pyluach import dates, hebrewcal
 
 # ==============================================================================
 #                                הגדרות גלובליות
@@ -52,8 +53,17 @@ class TorahTreeApp(ctk.CTk):
         # משתנה לשמירת סוג הספירה הנבחר (פרקים, משניות וכו')
         self.mode = ctk.StringVar(value="פרקים")
         # משתנים לשמירת תאריכי התחלה וסיום
-        self.start_date_var = ctk.StringVar(value=date.today().strftime('%Y-%m-%d'))
-        self.end_date_var = ctk.StringVar(value=(date.today() + timedelta(days=30)).strftime('%Y-%m-%d'))
+        self.date_input_mode = tk.StringVar(value="hebrew")
+        today = date.today()
+        self.start_date_var = ctk.StringVar()
+        self.end_date_var = ctk.StringVar()
+        # ערכי ברירת מחדל בהתאם למצב התאריכים
+        if self.date_input_mode.get() == "hebrew":
+            self.start_date_var.set(self.format_hebrew_date(today))
+            self.end_date_var.set(self.format_hebrew_date(today + timedelta(days=30)))
+        else:
+            self.start_date_var.set(today.strftime('%Y-%m-%d'))
+            self.end_date_var.set((today + timedelta(days=30)).strftime('%Y-%m-%d'))
         # משתנה לשמירת מספר יחידות הלימוד ביום (במצב הספק יומי)
         self.units_per_day_var = tk.IntVar(value=1)
         # מעקב אחר שינויים בשדה ההספק היומי לעדכון אוטומטי של התצוגה
@@ -173,6 +183,12 @@ class TorahTreeApp(ctk.CTk):
             locale='he_IL',
             font=("Arial", 14)
         )
+        self.start_date_entry_text = ctk.CTkEntry(
+            schedule_frame,
+            textvariable=self.start_date_var,
+            width=150,
+            font=ctk.CTkFont(size=14)
+        )
         self.start_date_entry.pack(fill="x", padx=10, pady=(0,5))
 
         # תאריך סיום
@@ -186,6 +202,12 @@ class TorahTreeApp(ctk.CTk):
             date_pattern="yyyy-mm-dd",
             locale='he_IL',
             font=("Arial", 14)
+        )
+        self.end_date_entry_text = ctk.CTkEntry(
+            schedule_frame,
+            textvariable=self.end_date_var,
+            width=150,
+            font=ctk.CTkFont(size=14)
         )
         self.end_date_entry.pack(fill="x", padx=10, pady=(0,5))
 
@@ -236,6 +258,7 @@ class TorahTreeApp(ctk.CTk):
 
         # הגדרה ראשונית - להציג נכונה את השדות
         self.toggle_schedule_mode()
+        self.update_date_widgets()
 
     # ==================== פונקציות עזר וניהול מצב ====================
     def _setup_initial_geometry(self):
@@ -273,6 +296,54 @@ class TorahTreeApp(ctk.CTk):
             self.units_per_day_entry.pack(fill="x", padx=10, pady=(0,5))
         self.calculate_and_display_daily_progress() # עדכון התווית בעת שינוי מצב
 
+    def update_date_widgets(self):
+        """מעביר בין קלט עברי ללועזי ומעדכן את השדות."""
+        use_hebrew = self.date_input_mode.get() == "hebrew"
+        # המרת הערכים הקיימים לפי המצב החדש
+        if use_hebrew:
+            start = self._parse_gregorian_date(self.start_date_var.get())
+            end = self._parse_gregorian_date(self.end_date_var.get())
+            self.start_date_var.set(self.format_hebrew_date(start) if start else "")
+            self.end_date_var.set(self.format_hebrew_date(end) if end else "")
+            self.start_date_entry.pack_forget()
+            self.end_date_entry.pack_forget()
+            self.start_date_entry_text.pack(fill="x", padx=10, pady=(0,5))
+            self.end_date_entry_text.pack(fill="x", padx=10, pady=(0,5))
+        else:
+            start = self._parse_hebrew_date(self.start_date_var.get())
+            end = self._parse_hebrew_date(self.end_date_var.get())
+            self.start_date_var.set(start.isoformat() if start else "")
+            self.end_date_var.set(end.isoformat() if end else "")
+            self.start_date_entry_text.pack_forget()
+            self.end_date_entry_text.pack_forget()
+            self.start_date_entry.pack(fill="x", padx=10, pady=(0,5))
+            self.end_date_entry.pack(fill="x", padx=10, pady=(0,5))
+
+    def _parse_hebrew_year(self, year_str: str) -> int:
+        """ממיר מחרוזת שנה עברית למספר שנה מלא."""
+        year_str = year_str.strip()
+        if "׳" in year_str:
+            idx = year_str.index("׳")
+            thousands_part = year_str[:idx]
+            rest = year_str[idx + 1:]
+            thousands = Gematria.gematria_to_int(thousands_part) * 1000
+        else:
+            thousands = 0
+            rest = year_str
+        year = thousands + Gematria.gematria_to_int(rest)
+        if year < 1000:
+            year += 5000
+        return year
+
+    def format_hebrew_date(self, g_date: date) -> str:
+        """פורמט ידידותי לתאריך עברי מהתאריך הגרגוריאני הנתון."""
+        g = dates.GregorianDate(g_date.year, g_date.month, g_date.day)
+        h = g.to_heb()
+        year_str = Gematria.format_hebrew_number(h.year, punctuation=True)
+        month_name = hebrewcal.Month(h.year, h.month).month_name(True)
+        day_str = Gematria.format_hebrew_number(h.day, punctuation=False)
+        return f"{year_str} {day_str} {month_name}"
+
     def toggle_settings_panel(self):
         """מציג או מסתיר חלון צד להגדרות מיוחדות."""
         if self.settings_window and self.settings_window.winfo_exists():
@@ -285,6 +356,24 @@ class TorahTreeApp(ctk.CTk):
 
         ctk.CTkLabel(self.settings_window, text="התרעה לפני שיעור (בדקות):").pack(pady=(10,0))
         ctk.CTkEntry(self.settings_window, textvariable=self.alarm_minutes_before).pack(fill="x", padx=10, pady=6)
+
+        ctk.CTkLabel(self.settings_window, text="סוג קלט תאריך:").pack(pady=(10,0))
+        rb1 = ctk.CTkRadioButton(
+            self.settings_window,
+            text="עבריים",
+            variable=self.date_input_mode,
+            value="hebrew",
+            command=self.update_date_widgets
+        )
+        rb2 = ctk.CTkRadioButton(
+            self.settings_window,
+            text="לועזיים",
+            variable=self.date_input_mode,
+            value="gregorian",
+            command=self.update_date_widgets
+        )
+        rb1.pack(anchor="w", padx=10)
+        rb2.pack(anchor="w", padx=10)
         ctk.CTkButton(self.settings_window, text="סגור", command=self.toggle_settings_panel).pack(pady=(5,10))
 
     def choose_file(self):
@@ -416,10 +505,30 @@ class TorahTreeApp(ctk.CTk):
         ממיר מחרוזת תאריך לאובייקט date.
         מחזיר None אם הפורמט אינו תקין.
         """
+        if self.date_input_mode.get() == "hebrew":
+            return self._parse_hebrew_date(date_str)
+        return self._parse_gregorian_date(date_str)
+
+    def _parse_gregorian_date(self, date_str: str):
         try:
             return date.fromisoformat(date_str)
         except ValueError:
             return None
+
+    def _parse_hebrew_date(self, date_str: str):
+        parts = date_str.strip().split()
+        if len(parts) == 3:
+            year_part, day_part, month_part = parts
+            try:
+                year = self._parse_hebrew_year(year_part)
+                day = Gematria.gematria_to_int(day_part)
+                month = HEBREW_MONTH_NAMES.index(month_part) + 1
+                hd = dates.HebrewDate(year, month, day)
+                g = hd.to_greg()
+                return date(g.year, g.month, g.day)
+            except Exception:
+                return None
+        return None
 
     # ==================== פונקציות חישוב לוגיות ====================
     def _calculate_projected_end_date(self, start_date_obj, total_material, units_per_day_val, no_study_weekdays_set):
@@ -522,15 +631,17 @@ class TorahTreeApp(ctk.CTk):
                 return
 
             if total_content == 0: # אם אין חומר ללמוד, תאריך הסיום הוא תאריך ההתחלה
-                self.daily_progress_label.configure(text=f"תאריך סיום: {start_d.strftime('%d/%m/%Y')} (אין חומר ללמוד)")
+                end_str = self.format_hebrew_date(start_d) if self.date_input_mode.get() == "hebrew" else start_d.strftime('%d/%m/%Y')
+                self.daily_progress_label.configure(text=f"תאריך סיום: {end_str} (אין חומר ללמוד)")
                 return
 
             projected_end_date = self._calculate_projected_end_date(start_d, total_content, units_val, no_study_weekdays)
 
             if projected_end_date:
                 duration_days = (projected_end_date - start_d).days + 1 # כולל יום ההתחלה והסיום
+                end_str = self.format_hebrew_date(projected_end_date) if self.date_input_mode.get() == "hebrew" else projected_end_date.strftime('%d/%m/%Y')
                 # הצגת תאריך הסיום המשוער ומשך הלימוד הכולל בימים
-                self.daily_progress_label.configure(text=f"תאריך סיום משוער: {projected_end_date.strftime('%d/%m/%Y')}\n({duration_days} ימים)")
+                self.daily_progress_label.configure(text=f"תאריך סיום משוער: {end_str}\n({duration_days} ימים)")
             else:
                 # יכול לקרות אם אין ימי לימוד אפשריים או שהחישוב נכשל (למשל, הספק נמוך מאוד וחומר רב)
                 self.daily_progress_label.configure(text="תאריך סיום: (לא ניתן לחשב / אין ימי לימוד)")
