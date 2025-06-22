@@ -17,7 +17,6 @@
       --holiday-bg: linear-gradient(135deg, #fff0f4, #ffcadd);
       --holiday-text: #89193c;
     }
-
     body.dark {
       --bg-color: #1e1e1e;
       --text-color: #f0f0f0;
@@ -30,7 +29,6 @@
       --holiday-bg: linear-gradient(135deg, #64032f, #d63280);
       --holiday-text: #fff;
     }
-
     body {
       background: var(--bg-color);
       color: var(--text-color);
@@ -38,30 +36,13 @@
       margin: 0;
       padding: 0 6vw;
     }
-
     h1, h2 {
       text-align: center;
       color: var(--header-text);
     }
-
-    h1 {
-      font-size: 2em;
-      margin-top: 1em;
-      margin-bottom: 0.3em;
-    }
-
-    h2 {
-      font-size: 1.3em;
-      margin-top: 1.4em;
-      margin-bottom: 0.5em;
-    }
-
-    p {
-      text-align: center;
-      color: var(--text-color);
-      margin-bottom: 1em;
-    }
-
+    h1 { font-size: 2em; margin-top: 1em; }
+    h2 { font-size: 1.3em; margin-top: 1.4em; }
+    p { text-align: center; margin-bottom: 1em; }
     .theme-toggle {
       display: block;
       margin: 10px auto;
@@ -71,9 +52,7 @@
       border: 1px solid var(--border-color);
       border-radius: 8px;
       cursor: pointer;
-      font-size: 1em;
     }
-
     table {
       width: 100%;
       border-collapse: separate;
@@ -85,10 +64,8 @@
       margin-bottom: 30px;
       table-layout: fixed;
     }
-
     th, td {
       height: 90px;
-      min-height: 90px;
       padding: 10px;
       text-align: center;
       vertical-align: top;
@@ -96,81 +73,89 @@
       box-sizing: border-box;
       word-wrap: break-word;
     }
-
     th {
       background: var(--header-bg);
       color: var(--header-text);
       font-weight: bold;
-      font-size: 1.1em;
     }
-
     td {
       background: var(--card-bg);
       border-radius: 12px;
-      transition: background 0.2s ease-in-out;
     }
-
-    td:hover {
-      background: #eef8ff;
-    }
-
-    .not-in-month {
-      background-color: #f0f2f5;
-      color: #aaa;
-    }
-
-    .day-number {
-      font-weight: bold;
-      font-size: 1.2em;
-      color: #2980b9;
-      margin-bottom: 4px;
-    }
-
-    .label {
-      font-size: 0.95em;
-      font-weight: bold;
-      color: #c0392b;
-    }
-
-    .study {
-      font-size: 0.9em;
-      color: #27ae60;
-      margin-top: 4px;
-    }
-
+    td.has-link { padding: 0; }
+    td:hover { background: #eef8ff; }
+    .not-in-month { background-color: #f0f2f5; color: #aaa; }
+    .day-number { font-weight: bold; color: #2980b9; }
+    .label { font-weight: bold; color: #c0392b; }
+    .study { color: #27ae60; margin-top: 4px; }
     .study-link {
       text-decoration: none;
       color: inherit;
       display: block;
+      height: 100%;
+      padding: 10px;
+      box-sizing: border-box;
     }
-
     .shabbat {
       background: var(--shabbat-bg) !important;
       color: var(--shabbat-text) !important;
     }
-
     .holiday {
       background: var(--holiday-bg) !important;
       color: var(--holiday-text) !important;
       border: 2px solid #f6a5b4;
     }
-
     .shabbat.holiday {
       background: linear-gradient(135deg, #ffe8f5 60%, #ffe4bd 100%) !important;
       color: #fff !important;
     }
 
+    /* Modal */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      display: none; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal-content {
+      background: var(--card-bg); color: var(--text-color);
+      padding: 25px; border-radius: 15px;
+      width: 90%; max-width: 800px; max-height: 90vh;
+      overflow-y: auto; position: relative;
+    }
+    .modal-close-btn {
+      position: absolute; top: 15px; right: 15px;
+      background: none; border: none; font-size: 2rem; cursor: pointer;
+    }
+    .modal-body { padding-top: 30px; }
+    .modal-footer {
+      text-align: center; margin-top: 25px; padding-top: 15px;
+      border-top: 1px solid var(--border-color);
+    }
+    .sefaria-btn {
+      padding: 10px 20px;
+      background: var(--header-bg); color: var(--header-text);
+      border: 1px solid var(--border-color);
+      border-radius: 8px; text-decoration: none;
+    }
+
+    .dibur {
+      font-weight: bold;
+      color: #c0392b;
+    }
+
+    .source-text, .comment-text { line-height: 1.8; }
+    .commentary-item { margin-bottom: 20px; }
+    .commentator-name { font-weight: bold; color: var(--shabbat-text); }
+
     @media (max-width: 768px) {
-      body { padding: 0 3vw; }
       th, td { font-size: 0.9em; height: 70px; }
     }
   </style>
 </head>
 <body>
-  <button class="theme-toggle" onclick="document.body.classList.toggle('dark')">
-    החלף מצב תצוגה
-  </button>
-
+  <button class="theme-toggle" onclick="document.body.classList.toggle('dark')">החלף מצב תצוגה</button>
   <h1>{{ title }}</h1>
   <p>תאריכים: {{ date_range }}</p>
 
@@ -179,13 +164,7 @@
     <table>
       <thead>
         <tr>
-          <th>ראשון</th>
-          <th>שני</th>
-          <th>שלישי</th>
-          <th>רביעי</th>
-          <th>חמישי</th>
-          <th>שישי</th>
-          <th>שבת</th>
+          <th>ראשון</th><th>שני</th><th>שלישי</th><th>רביעי</th><th>חמישי</th><th>שישי</th><th>שבת</th>
         </tr>
       </thead>
       <tbody>
@@ -196,25 +175,20 @@
                          {% if not day.is_in_month %}{{ cls.append('not-in-month') }}{% endif %}
                          {% if day.is_shabbat %}{{ cls.append('shabbat') }}{% endif %}
                          {% if day.is_holiday %}{{ cls.append('holiday') }}{% endif %}
+                         {% if day.link %}{{ cls.append('has-link') }}{% endif %}
                          {{ ' '.join(cls) }}">
                 {% if day.hebrew_date %}
-                  <div class="day-number">{{ day.hebrew_day_number }}</div>
-                  {% if day.label %}
-                    <div class="label">{{ day.label }}</div>
-                  {% endif %}
-                  {% if day.study_portion %}
-                    {% if day.link %}
-                      <a href="{{ day.link }}" class="study-link">
-                        <div class="study">{{ day.study_portion }}</div>
-                      </a>
-                    {% else %}
-                      <div class="study">{{ day.study_portion }}</div>
-                    {% endif %}
+                  {% if day.link %}
+                    <a href="{{ day.link }}" class="study-link">
+                      <div class="day-number">{{ day.hebrew_day_number }}</div>
+                      {% if day.label %}<div class="label">{{ day.label }}</div>{% endif %}
+                      {% if day.study_portion %}<div class="study">{{ day.study_portion }}</div>{% endif %}
+                    </a>
                   {% else %}
-                    &nbsp;
+                    <div class="day-number">{{ day.hebrew_day_number }}</div>
+                    {% if day.label %}<div class="label">{{ day.label }}</div>{% endif %}
+                    {% if day.study_portion %}<div class="study">{{ day.study_portion }}</div>{% endif %}
                   {% endif %}
-                {% else %}
-                  &nbsp;
                 {% endif %}
               </td>
             {% endfor %}
@@ -223,5 +197,130 @@
       </tbody>
     </table>
   {% endfor %}
+
+  <!-- מודאל ספריא -->
+  <div id="sefaria-modal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="modal-close-btn">&times;</button>
+      <div class="modal-body">
+        <div id="modal-loader">טוען...</div>
+        <div id="modal-text-container" style="display: none;"></div>
+        <div id="modal-commentary-container" style="display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <a id="modal-sefaria-link" href="#" target="_blank" class="sefaria-btn">לצפייה באתר ספריא</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('sefaria-modal');
+    const modalCloseBtn = modal.querySelector('.modal-close-btn');
+    const modalTextContainer = document.getElementById('modal-text-container');
+    const modalCommentaryContainer = document.getElementById('modal-commentary-container');
+    const modalSefariaLink = document.getElementById('modal-sefaria-link');
+    const modalLoader = document.getElementById('modal-loader');
+
+    function showModal() {
+      modal.classList.add('visible');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function hideModal() {
+      modal.classList.remove('visible');
+      document.body.style.overflow = '';
+      modalTextContainer.innerHTML = '';
+      modalCommentaryContainer.innerHTML = '';
+    }
+
+    modalCloseBtn.addEventListener('click', hideModal);
+    modal.addEventListener('click', e => { if (e.target === modal) hideModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hideModal(); });
+
+    document.body.addEventListener('click', async event => {
+      const link = event.target.closest('a.study-link');
+      if (!link) return;
+      event.preventDefault();
+
+      modalTextContainer.style.display = 'none';
+      modalCommentaryContainer.style.display = 'none';
+      modalLoader.style.display = 'block';
+      showModal();
+
+      const sefariaUrl = link.href;
+      modalSefariaLink.href = sefariaUrl;
+
+      let ref = '';
+      try {
+        const url = new URL(sefariaUrl);
+        ref = url.pathname.substring(1).replace(/^he\//, '').replace(/\/he$/, '').split('?')[0];
+      } catch {
+        displayError('קישור לא תקין');
+        return;
+      }
+
+      const cached = sessionStorage.getItem(ref);
+      if (cached) {
+        display(JSON.parse(cached));
+        return;
+      }
+
+      const apiUrl = `https://www.sefaria.org.il/api/texts/${ref}?commentary=1&context=0`;
+      try {
+        const res = await fetch(apiUrl);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        sessionStorage.setItem(ref, JSON.stringify(data));
+        display(data);
+      } catch {
+        displayError('טעינה נכשלה. נסו שוב מאוחר יותר.');
+      }
+    });
+
+    function display(data) {
+      modalLoader.style.display = 'none';
+      modalTextContainer.style.display = 'block';
+      modalCommentaryContainer.style.display = 'block';
+
+      modalTextContainer.innerHTML = `<h3>${data.heRef}</h3><div class="source-text">${data.he.join('<br>')}</div>`;
+
+      const allowed = ['רש"י', 'רמב"ן', 'אונקלוס'];
+      const grouped = new Map();
+
+      (data.commentary || []).forEach(c => {
+        const name = c.collectiveTitle?.he || c.commentator || 'לא ידוע';
+        if (!allowed.includes(name)) return;
+
+        const rawText = Array.isArray(c.he) ? c.he.join(' ') : c.he || '';
+        const cleanText = rawText.replace(/<[^>]*>/g, '').trim();
+        if (!cleanText) return;
+
+        const dibur = cleanText.split(/[.:!?]/)[0];
+        const highlighted = `<span class="dibur">${dibur}</span>${cleanText.slice(dibur.length)}`;
+
+        if (!grouped.has(name)) grouped.set(name, []);
+        grouped.get(name).push(highlighted);
+      });
+
+      if (grouped.size > 0) {
+        let html = '<h4>פרשנים</h4>';
+        for (const [name, comments] of grouped.entries()) {
+          html += `<div class="commentary-item"><div class="commentator-name">${name}</div><div class="comment-text">${comments.join('<br><br>')}</div></div>`;
+        }
+        modalCommentaryContainer.innerHTML = html;
+      } else {
+        modalCommentaryContainer.innerHTML = '<div class="comment-text">אין פרשנים זמינים</div>';
+      }
+    }
+
+    function displayError(msg) {
+      modalLoader.style.display = 'none';
+      modalTextContainer.style.display = 'block';
+      modalTextContainer.innerHTML = `<div class="source-text" style="color:red; text-align:center">${msg}</div>`;
+    }
+  });
+  </script>
+
 </body>
 </html>
