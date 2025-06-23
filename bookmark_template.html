@@ -46,14 +46,50 @@
     h1 { font-size: 2em; margin-top: 1em; }
     h2 { font-size: 1.3em; margin-top: 1.4em; }
     p { text-align: center; margin-bottom: 1em; }
-    .theme-toggle {
-      display: block;
-      margin: 10px auto;
-      padding: 8px 16px;
+
+    .settings-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--border-color);
       background: var(--header-bg);
       color: var(--header-text);
+      cursor: pointer;
+      font-size: 1.2em;
+      z-index: 1001;
+    }
+
+    .settings-panel {
+      position: fixed;
+      top: 60px;
+      right: 10px;
+      background: var(--card-bg);
+      color: var(--text-color);
       border: 1px solid var(--border-color);
       border-radius: 8px;
+      padding: 15px 20px 20px 20px;
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 1001;
+      display: none;
+    }
+
+    .settings-panel.visible { display: block; }
+
+    .settings-panel h3 { margin-top: 0; }
+
+    .settings-panel label { display: block; margin-bottom: 5px; }
+
+    .settings-close-btn {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      background: none;
+      border: none;
+      font-size: 1.2em;
       cursor: pointer;
     }
 
@@ -175,7 +211,16 @@
   </style>
 </head>
 <body>
-  <button class="theme-toggle" onclick="document.body.classList.toggle('dark')">החלף מצב תצוגה</button>
+  <button id="settings-btn" class="settings-btn">&#9881;</button>
+  <div id="settings-panel" class="settings-panel">
+    <button class="settings-close-btn">&times;</button>
+    <h3>הגדרות</h3>
+    <label><input type="checkbox" id="theme-checkbox"> מצב כהה</label>
+    <div id="commentary-settings">
+      <h4>פרשנים</h4>
+      <div id="commentary-list"></div>
+    </div>
+  </div>
   <h1>{{ title }}</h1>
   <p>תאריכים: {{ date_range }}</p>
 
@@ -241,6 +286,49 @@
     const modalCommentaryContainer = document.getElementById('modal-commentary-container');
     const modalSefariaLink = document.getElementById('modal-sefaria-link');
     const modalLoader = document.getElementById('modal-loader');
+
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsPanel = document.getElementById('settings-panel');
+    const settingsCloseBtn = settingsPanel.querySelector('.settings-close-btn');
+    const themeCheckbox = document.getElementById('theme-checkbox');
+    const commentaryList = document.getElementById('commentary-list');
+
+    let allowedCommentaries = new Set(JSON.parse(localStorage.getItem('allowedCommentaries') || '[]'));
+    const allCommentaries = new Set();
+
+    function updateCommentaryList(newNames = []) {
+      newNames.forEach(n => allCommentaries.add(n));
+      commentaryList.innerHTML = '';
+      [...allCommentaries].sort().forEach(name => {
+        const checked = allowedCommentaries.size === 0 || allowedCommentaries.has(name);
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = checked;
+        cb.dataset.name = name;
+        cb.addEventListener('change', e => {
+          if (e.target.checked) allowedCommentaries.add(name);
+          else allowedCommentaries.delete(name);
+          localStorage.setItem('allowedCommentaries', JSON.stringify([...allowedCommentaries]));
+        });
+        const label = document.createElement('label');
+        label.appendChild(cb);
+        label.append(' ' + name);
+        commentaryList.appendChild(label);
+      });
+    }
+
+    settingsBtn.addEventListener('click', () => settingsPanel.classList.add('visible'));
+    settingsCloseBtn.addEventListener('click', () => settingsPanel.classList.remove('visible'));
+
+    themeCheckbox.addEventListener('change', () => {
+      document.body.classList.toggle('dark', themeCheckbox.checked);
+      localStorage.setItem('darkMode', themeCheckbox.checked ? '1' : '0');
+    });
+
+    if (localStorage.getItem('darkMode') === '1') {
+      themeCheckbox.checked = true;
+      document.body.classList.add('dark');
+    }
 
     function showModal() {
       modal.classList.add('visible');
@@ -312,12 +400,13 @@
 
       modalTextContainer.innerHTML = `<h3>${data.heRef}</h3><div class="source-text">${data.he.join('<br>')}</div>`;
 
-      const allowed = ['רש"י', 'רמב"ן', 'אונקלוס'];
+      const names = [];
       const grouped = new Map();
 
       (data.commentary || []).forEach(c => {
         const name = c.collectiveTitle?.he || c.commentator || 'לא ידוע';
-        if (!allowed.includes(name)) return;
+        if (!names.includes(name)) names.push(name);
+        if (allowedCommentaries.size && !allowedCommentaries.has(name)) return;
 
         const rawText = Array.isArray(c.he) ? c.he.join(' ') : c.he || '';
         const cleanText = rawText.replace(/<[^>]*>/g, '').trim();
@@ -329,6 +418,8 @@
         if (!grouped.has(name)) grouped.set(name, []);
         grouped.get(name).push(highlighted);
       });
+
+      updateCommentaryList(names);
 
       if (grouped.size > 0) {
         let html = '<h4>פרשנים</h4>';
