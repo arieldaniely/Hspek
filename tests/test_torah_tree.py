@@ -97,3 +97,16 @@ def test_get_length_dapim(torah_tree, sample_tree):
 
 def test_get_length_amudim(torah_tree, sample_tree):
     assert torah_tree.get_length_from_node(sample_tree, "עמודים") == 36
+
+
+def test_build_sefaria_ref_detects_category(torah_tree):
+    first = {
+        "book_display_name": "משנה / זרעים / ברכות",
+        "chapter_name": "פרק א",
+    }
+    last = {
+        "book_display_name": "משנה / זרעים / ברכות",
+        "chapter_name": "פרק ב",
+    }
+    ref = torah_tree.build_sefaria_ref(first, last, "פרקים")
+    assert ref == "משנה_ברכות.א-ב"

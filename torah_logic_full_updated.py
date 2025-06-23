@@ -763,9 +763,28 @@ def build_description(first_unit, last_unit, mode):
     return desc
 
 def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | None:
-    """Construct a Sefaria-compatible reference."""
+    """Construct a Sefaria-compatible reference.
+
+    ``mode`` indicates the unit granularity (פרקים/משניות/דפים/עמודים) only.
+    The content category (Tanakh/Mishnah/Talmud) is detected from the path of
+    ``first_unit``.
+    """
     with open("sefaria_masechet_map.json", "r", encoding="utf-8") as f:
         SEFARIA_MASECHET_MAP = json.load(f)
+
+    def detect_category(unit: dict) -> str | None:
+        """Return 'tanakh', 'mishnah' or 'talmud' based on the unit path."""
+        path = unit.get("book_display_name", "")
+        if not path:
+            return None
+        first = path.split(" / ")[0]
+        if first.startswith("משנה"):
+            return "mishnah"
+        if "תלמוד" in first:
+            return "talmud"
+        if first in ("תנך", "תנ""ך"):
+            return "tanakh"
+        return None
 
     def extract(unit):
         name = unit.get("book_display_name", "")
@@ -786,13 +805,14 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | Non
     if not sb or (eb and eb != sb):
         return None
 
+    category = detect_category(first_unit)
     book = sb
-    if mode in ("דפים", "עמודים"):
+    if category == "talmud":
         masechet = book.replace("מסכת ", "")
         book = SEFARIA_MASECHET_MAP.get(masechet)
         if not book:
             return None
-    elif mode == "משניות":
+    elif category == "mishnah":
         if not book.startswith("משנה_"):
             book = f"משנה_{book}"
 
