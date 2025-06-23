@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from ics import Calendar, Event
+from ics import Calendar, Event, DisplayAlarm
 import json
 import os
 from urllib.parse import quote_plus, quote
@@ -213,6 +213,15 @@ def get_israeli_national_holiday_on_gregorian_date(gregorian_date_to_check: date
 
     return None
 
+# ==================== בדיקת חגים ====================
+def is_holiday(gregorian_date: date) -> bool:
+    """בודק אם תאריך גרגוריאני כלשהו הוא חג או מועד ישראלי (לא כולל שבת)."""
+    g_date = dates.GregorianDate(gregorian_date.year, gregorian_date.month, gregorian_date.day)
+    h_d = g_date.to_heb()
+    regular_holiday = h_d.holiday(hebrew=True, israel=True)
+    national = get_israeli_national_holiday_on_gregorian_date(gregorian_date, h_d.year)
+    return bool(regular_holiday or national)
+
 # ==================== כלי עזר ====================
 def load_data(path):
     """
@@ -302,16 +311,17 @@ def get_length_from_node(node, mode):
 
     return total
 
-def calculate_study_days(start_date, end_date, no_study_weekdays):
+def calculate_study_days(start_date, end_date, no_study_weekdays, skip_holidays=False):
     """
     מחשב את מספר ימי הלימוד הפנויים בטווח תאריכים נתון,
-    בניכוי ימי חופשה שבועיים.
+    בניכוי ימי חופשה שבועיים וחגים.
 
     Args:
         start_date (date): תאריך התחלת הטווח.
         end_date (date): תאריך סיום הטווח (כולל).
         no_study_weekdays (set[int]): קבוצת מספרים המייצגים ימים בשבוע בהם אין לימוד
                                       (0=שני, 1=שלישי, ..., 6=ראשון).
+        skip_holidays (bool, optional): האם לדלג על חגים בלוח הלימוד.
     Returns:
         int: מספר ימי הלימוד הפנויים.
     """
@@ -319,7 +329,8 @@ def calculate_study_days(start_date, end_date, no_study_weekdays):
     current_date = start_date
     while current_date <= end_date:
         if current_date.weekday() not in no_study_weekdays:
-            count += 1
+            if not (skip_holidays and is_holiday(current_date)):
+                count += 1
         current_date += timedelta(days=1)
     return count
 
@@ -607,7 +618,8 @@ def _generate_study_schedule(
         mode,
         tree_data,
         no_study_weekdays,
-        units_per_day=None
+        units_per_day=None,
+        skip_holidays=False
     ):
     """
     מייצר את לוח הלימודים המפורט יום אחר יום.
@@ -621,6 +633,7 @@ def _generate_study_schedule(
         no_study_weekdays (set[int]): קבוצת ימי חופשה שבועיים.
         units_per_day (int, optional): מספר יחידות לימוד ביום (במצב הספק קבוע).
                                        אם None, הלימוד מחולק על פני טווח התאריכים.
+        skip_holidays (bool, optional): האם לדלג על חגים בלוח הלימוד.
     Returns:
         list[dict]: רשימת אירועי לימוד. כל פריט מכיל:
             - ``date``: התאריך הגרגוריאני.
@@ -690,7 +703,7 @@ def _generate_study_schedule(
 
     if units_per_day is None:
         # מצב רגיל: מחלקים לפי מספר ימי לימוד בפועל בין התאריכים
-        study_days_count = calculate_study_days(start_date, end_date, no_study_weekdays)
+        study_days_count = calculate_study_days(start_date, end_date, no_study_weekdays, skip_holidays)
         if study_days_count == 0:
             return []
         base_per_day = total_units // study_days_count
@@ -699,7 +712,7 @@ def _generate_study_schedule(
 
         while current_date <= end_date and unit_idx < total_units:
             # לולאה על כל יום בטווח התאריכים
-            if current_date.weekday() not in no_study_weekdays:
+            if current_date.weekday() not in no_study_weekdays and not (skip_holidays and is_holiday(current_date)):
                 num_today = allocations[day_idx]
                 if num_today > 0:
                     todays_units = all_units[unit_idx:unit_idx + num_today]
@@ -717,7 +730,7 @@ def _generate_study_schedule(
     else:
         # מצב הספק יומי קבוע
         while unit_idx < total_units:
-            if current_date.weekday() not in no_study_weekdays:
+            if current_date.weekday() not in no_study_weekdays and not (skip_holidays and is_holiday(current_date)):
                 # לוקחים units_per_day יחידות או פחות אם זה סוף הרשימה
                 todays_units = all_units[unit_idx:unit_idx + units_per_day]
                 first_unit, last_unit = todays_units[0], todays_units[-1]
@@ -864,6 +877,8 @@ def write_ics_file(
     tree_data,
     no_study_weekdays_set,
     units_per_day=None,
+    skip_holidays=False,
+    alarm_minutes_before=None,
     link_template: str = DEFAULT_LESSON_LINK,
 ):
     """
@@ -877,6 +892,8 @@ def write_ics_file(
         tree_data (dict): עץ הנתונים המלא.
         no_study_weekdays_set (set[int]): קבוצת ימי חופשה שבועיים.
         units_per_day (int, optional): הספק יומי (אם רלוונטי).
+        skip_holidays (bool, optional): האם לדלג על חגים בלוח הלימוד.
+        alarm_minutes_before (int | None, optional): דקות לפני תחילת האירוע ליצירת התראה.
         link_template (str, optional):
             תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
@@ -892,6 +909,7 @@ def write_ics_file(
         tree_data,
         no_study_weekdays_set,
         units_per_day,
+        skip_holidays,
     )
 
     if not schedule:
@@ -914,6 +932,8 @@ def write_ics_file(
         e.name = event_base_name
         e.begin = day_data['date'].strftime('%Y-%m-%d')
         e.make_all_day()
+        if alarm_minutes_before:
+            e.alarms = [DisplayAlarm(trigger=timedelta(minutes=-alarm_minutes_before))]
         e.description = day_data['description'] + (f"\n{link}" if link else "")
         if link:
             e.url = link
@@ -940,6 +960,7 @@ def write_bookmark_html(
     tree_data,
     no_study_weekdays_set,
     units_per_day=None,
+    skip_holidays=False,
     link_template: str = DEFAULT_LESSON_LINK,
 ):
     """
@@ -953,6 +974,7 @@ def write_bookmark_html(
         tree_data (dict): עץ הנתונים המלא.
         no_study_weekdays_set (set[int]): קבוצת ימי חופשה שבועיים.
         units_per_day (int, optional): הספק יומי (אם רלוונטי).
+        skip_holidays (bool, optional): האם לדלג על חגים בלוח הלימוד.
         link_template (str, optional):
             תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
@@ -960,7 +982,7 @@ def write_bookmark_html(
     Returns:
         str or None: הנתיב המלא לקובץ ה-HTML שנוצר, או None אם אירעה שגיאה.
     """
-    schedule = _generate_study_schedule(start_date, end_date, titles_list, mode, tree_data, no_study_weekdays_set, units_per_day)
+    schedule = _generate_study_schedule(start_date, end_date, titles_list, mode, tree_data, no_study_weekdays_set, units_per_day, skip_holidays)
 
     if not schedule:
         print("אזהרה: לא נוצר לוח לימודים.")
@@ -1084,7 +1106,8 @@ if __name__ == '__main__':
         start_date=start,
         end_date=end,
         tree_data=tree_data,
-        no_study_weekdays_set=example_no_study_days
+        no_study_weekdays_set=example_no_study_days,
+        skip_holidays=False
     )
     print("-" * 20)
     write_bookmark_html(
@@ -1093,5 +1116,6 @@ if __name__ == '__main__':
         start_date=start,
         end_date=end,
         tree_data=tree_data,
-        no_study_weekdays_set=example_no_study_days
+        no_study_weekdays_set=example_no_study_days,
+        skip_holidays=False
     )

@@ -14,7 +14,7 @@ import os
 from torah_logic_full_updated import (
     load_data, get_length_from_node, has_relevant_data_recursive,
     calculate_study_days, write_ics_file,
-    write_bookmark_html
+    write_bookmark_html, is_holiday
 )
 
 # ==============================================================================
@@ -61,8 +61,9 @@ class TorahTreeApp(ctk.CTk):
         # משתנה לבחירת מצב הלוח: 0 = חלוקה לפי טווח תאריכים, 1 = לפי הספק יומי קבוע
         self.schedule_mode_var = tk.IntVar(value=0)  # 0 = עד תאריך, 1 = הספק יומי
 
-        # הגדרת זמן התראה ב-ICS ומסגרת ההגדרות הצדדית
+        # הגדרות לוח שנה
         self.alarm_minutes_before = tk.IntVar(value=30)
+        self.skip_holidays_var = ctk.BooleanVar(value=False)
         self.settings_window = None
 
         days_of_week = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"]
@@ -283,9 +284,26 @@ class TorahTreeApp(ctk.CTk):
         self.settings_window = ctk.CTkFrame(self, fg_color="white", width=800)
         self.settings_window.place(relx=1.0, y=0, relheight=1.0, anchor="ne")
 
-        ctk.CTkLabel(self.settings_window, text="התרעה לפני שיעור (בדקות):").pack(pady=(10,0))
+        # כפתור סגירה עגול בפינת החלון
+        ctk.CTkButton(
+            self.settings_window,
+            text="✕",
+            width=24,
+            height=24,
+            corner_radius=12,
+            command=self.toggle_settings_panel,
+            fg_color="#e0e0e0",
+            text_color="black"
+        ).place(x=6, y=6)
+
+        ctk.CTkLabel(self.settings_window, text="זמן התראה לפני שיעור (בדקות):").pack(pady=(40,0))
         ctk.CTkEntry(self.settings_window, textvariable=self.alarm_minutes_before).pack(fill="x", padx=10, pady=6)
-        ctk.CTkButton(self.settings_window, text="סגור", command=self.toggle_settings_panel).pack(pady=(5,10))
+
+        ctk.CTkCheckBox(
+            self.settings_window,
+            text="דלג על חגים",
+            variable=self.skip_holidays_var
+        ).pack(anchor="w", padx=10, pady=(0,6))
 
     def choose_file(self):
         """
@@ -422,7 +440,7 @@ class TorahTreeApp(ctk.CTk):
             return None
 
     # ==================== פונקציות חישוב לוגיות ====================
-    def _calculate_projected_end_date(self, start_date_obj, total_material, units_per_day_val, no_study_weekdays_set):
+    def _calculate_projected_end_date(self, start_date_obj, total_material, units_per_day_val, no_study_weekdays_set, skip_holidays=False):
         """
         מחשב את תאריך הסיום המשוער בהינתן תאריך התחלה, כמות חומר, הספק יומי וימי חופשה.
 
@@ -431,6 +449,7 @@ class TorahTreeApp(ctk.CTk):
             total_material (int or float): כמות החומר הכוללת ללימוד.
             units_per_day_val (int or float): מספר יחידות לימוד ביום.
             no_study_weekdays_set (set[int]): קבוצת ימי חופשה שבועיים (0=שני, ..., 6=ראשון).
+            skip_holidays (bool): האם לדלג על חגים בלוח הלימוד.
 
         Returns:
             date or None: אובייקט date של תאריך הסיום המשוער, או None אם החישוב נכשל (למשל, הספק 0, כל הימים חופש).
@@ -456,8 +475,9 @@ class TorahTreeApp(ctk.CTk):
 
         while sessions_counted < study_sessions_needed:
             if current_date.weekday() not in no_study_weekdays_set:
-                # אם היום הוא יום לימוד, קדם את מונה ימי הלימוד
-                sessions_counted += 1
+                if not (skip_holidays and is_holiday(current_date)):
+                    # אם היום הוא יום לימוד, קדם את מונה ימי הלימוד
+                    sessions_counted += 1
             
             if sessions_counted == study_sessions_needed: # הגענו למספר ימי הלימוד הנדרש
                 break
@@ -506,7 +526,7 @@ class TorahTreeApp(ctk.CTk):
                 self.daily_progress_label.configure(text="הספק יומי: (תאריך התחלה מאוחר מהסיום)")
                 return
             
-            study_days_count = calculate_study_days(start_d, end_d, no_study_weekdays)
+            study_days_count = calculate_study_days(start_d, end_d, no_study_weekdays, self.skip_holidays_var.get())
             if study_days_count > 0:
                 daily_progress = total_content / study_days_count
                 # הצגת ההספק היומי הנדרש
@@ -525,7 +545,7 @@ class TorahTreeApp(ctk.CTk):
                 self.daily_progress_label.configure(text=f"תאריך סיום: {start_d.strftime('%d/%m/%Y')} (אין חומר ללמוד)")
                 return
 
-            projected_end_date = self._calculate_projected_end_date(start_d, total_content, units_val, no_study_weekdays)
+            projected_end_date = self._calculate_projected_end_date(start_d, total_content, units_val, no_study_weekdays, self.skip_holidays_var.get())
 
             if projected_end_date:
                 duration_days = (projected_end_date - start_d).days + 1 # כולל יום ההתחלה והסיום
@@ -571,7 +591,7 @@ class TorahTreeApp(ctk.CTk):
         # בדיקות נוספות בהתאם למצב הלוח
         # אם במצב "סיום עד תאריך", ודא שיש ימי לימוד
         if self.schedule_mode_var.get() == 0:
-            study_days_count = calculate_study_days(start_date, end_date, no_study_weekdays_set)
+            study_days_count = calculate_study_days(start_date, end_date, no_study_weekdays_set, self.skip_holidays_var.get())
             if study_days_count == 0:
                 messagebox.showwarning("אין ימי לימוד", "אין ימי לימוד זמינים בתקופה שנבחרה.")
                 return
@@ -608,6 +628,7 @@ class TorahTreeApp(ctk.CTk):
                 tree_data=self.data,
                 no_study_weekdays_set=no_study_weekdays_set,
                 units_per_day=self.units_per_day_var.get() if self.schedule_mode_var.get() == 1 else None,
+                skip_holidays=self.skip_holidays_var.get(),
                 alarm_minutes_before=self.alarm_minutes_before.get() if self.alarm_minutes_before.get() > 0 else None
             )
             messagebox.showinfo("הצלחה", f"הקובץ נשמר:\n{saved_path}")
@@ -649,7 +670,7 @@ class TorahTreeApp(ctk.CTk):
         # בדיקות נוספות בהתאם למצב הלוח
         # אם במצב "סיום עד תאריך", ודא שיש ימי לימוד
         if self.schedule_mode_var.get() == 0:
-            study_days_count = calculate_study_days(start_date, end_date, no_study_weekdays_set)
+            study_days_count = calculate_study_days(start_date, end_date, no_study_weekdays_set, self.skip_holidays_var.get())
             if study_days_count == 0:
                 messagebox.showwarning("אין ימי לימוד", "אין ימי לימוד זמינים בתקופה שנבחרה.")
                 return
@@ -684,7 +705,8 @@ class TorahTreeApp(ctk.CTk):
                 end_date=end_date, # יישלח גם אם במצב הספק יומי
                 tree_data=self.data,
                 no_study_weekdays_set=no_study_weekdays_set,
-                units_per_day=self.units_per_day_var.get() if self.schedule_mode_var.get() == 1 else None
+                units_per_day=self.units_per_day_var.get() if self.schedule_mode_var.get() == 1 else None,
+                skip_holidays=self.skip_holidays_var.get()
             )
             messagebox.showinfo("הצלחה", f"הקובץ HTML נשמר:\n{saved_path}")
             os.startfile(saved_path) # פתיחת הקובץ בדפדפן ברירת המחדל
