@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, time
 from ics import Calendar, Event, DisplayAlarm
 import json
 import os
@@ -878,7 +878,7 @@ def write_ics_file(
     no_study_weekdays_set,
     units_per_day=None,
     skip_holidays=False,
-    alarm_minutes_before=None,
+    alarm_time: time | None = None,
     link_template: str = DEFAULT_LESSON_LINK,
 ):
     """
@@ -893,7 +893,7 @@ def write_ics_file(
         no_study_weekdays_set (set[int]): קבוצת ימי חופשה שבועיים.
         units_per_day (int, optional): הספק יומי (אם רלוונטי).
         skip_holidays (bool, optional): האם לדלג על חגים בלוח הלימוד.
-        alarm_minutes_before (int | None, optional): דקות לפני תחילת האירוע ליצירת התראה.
+        alarm_time (datetime.time | None, optional): שעת התראה לאירוע. אם ``None`` לא תוגדר התראה.
         link_template (str, optional):
             תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
@@ -917,7 +917,7 @@ def write_ics_file(
         return None
 
     actual_end_date = schedule[-1]["date"] if units_per_day else end_date
-    cal = Calendar() # יצירת אובייקט לוח שנה
+    cal = Calendar()  # יצירת אובייקט לוח שנה
 
     # קביעת שם בסיסי לאירוע
     first_title = titles_list[0].split(' / ')[-1] if titles_list else "לימוד"
@@ -932,8 +932,9 @@ def write_ics_file(
         e.name = event_base_name
         e.begin = day_data['date'].strftime('%Y-%m-%d')
         e.make_all_day()
-        if alarm_minutes_before:
-            e.alarms = [DisplayAlarm(trigger=timedelta(minutes=-alarm_minutes_before))]
+        if alarm_time:
+            alarm_dt = datetime.combine(day_data['date'], alarm_time)
+            e.alarms = [DisplayAlarm(trigger=alarm_dt)]
         e.description = day_data['description'] + (f"\n{link}" if link else "")
         if link:
             e.url = link

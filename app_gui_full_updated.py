@@ -5,7 +5,7 @@ import customtkinter as ctk
 from tkinter import ttk, filedialog, messagebox
 import tkinter as tk
 from tkcalendar import DateEntry
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import math
 import locale
 import os
@@ -62,7 +62,7 @@ class TorahTreeApp(ctk.CTk):
         self.schedule_mode_var = tk.IntVar(value=0)  # 0 = עד תאריך, 1 = הספק יומי
 
         # הגדרות לוח שנה
-        self.alarm_minutes_before = tk.IntVar(value=30)
+        self.alarm_time_var = ctk.StringVar(value="08:00")
         self.skip_holidays_var = ctk.BooleanVar(value=False)
         self.settings_window = None
 
@@ -296,8 +296,8 @@ class TorahTreeApp(ctk.CTk):
             text_color="black"
         ).place(x=6, y=6)
 
-        ctk.CTkLabel(self.settings_window, text="זמן התראה לפני שיעור (בדקות):").pack(pady=(40,0))
-        ctk.CTkEntry(self.settings_window, textvariable=self.alarm_minutes_before).pack(fill="x", padx=10, pady=6)
+        ctk.CTkLabel(self.settings_window, text="שעת התראה (HH:MM):").pack(pady=(40,0))
+        ctk.CTkEntry(self.settings_window, textvariable=self.alarm_time_var).pack(fill="x", padx=10, pady=6)
 
         ctk.CTkCheckBox(
             self.settings_window,
@@ -620,16 +620,24 @@ class TorahTreeApp(ctk.CTk):
 
         # קריאה לפונקציה הלוגית ליצירת קובץ ICS
         try:
+            alarm_time = None
+            if self.alarm_time_var.get():
+                try:
+                    alarm_time = datetime.strptime(self.alarm_time_var.get(), "%H:%M").time()
+                except ValueError:
+                    messagebox.showerror("שגיאה בשעת התראה", "אנא הזן שעה בפורמט HH:MM.")
+                    return
+
             saved_path = write_ics_file(
                 titles_list=selected_titles,
                 mode=mode,
                 start_date=start_date,
-                end_date=end_date, # יישלח גם אם במצב הספק יומי, הפונקציה הפנימית תדע להתעלם ממנו אם units_per_day מסופק
+                end_date=end_date,  # יישלח גם אם במצב הספק יומי
                 tree_data=self.data,
                 no_study_weekdays_set=no_study_weekdays_set,
                 units_per_day=self.units_per_day_var.get() if self.schedule_mode_var.get() == 1 else None,
                 skip_holidays=self.skip_holidays_var.get(),
-                alarm_minutes_before=self.alarm_minutes_before.get() if self.alarm_minutes_before.get() > 0 else None
+                alarm_time=alarm_time,
             )
             messagebox.showinfo("הצלחה", f"הקובץ נשמר:\n{saved_path}")
         except Exception as e:
