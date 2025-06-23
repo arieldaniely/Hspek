@@ -17,6 +17,7 @@
       --holiday-bg: linear-gradient(135deg, #fff0f4, #ffcadd);
       --holiday-text: #89193c;
     }
+
     body.dark {
       --bg-color: #1e1e1e;
       --text-color: #f0f0f0;
@@ -29,6 +30,7 @@
       --holiday-bg: linear-gradient(135deg, #64032f, #d63280);
       --holiday-text: #fff;
     }
+
     body {
       background: var(--bg-color);
       color: var(--text-color);
@@ -36,6 +38,7 @@
       margin: 0;
       padding: 0 6vw;
     }
+
     h1, h2 {
       text-align: center;
       color: var(--header-text);
@@ -53,6 +56,7 @@
       border-radius: 8px;
       cursor: pointer;
     }
+
     table {
       width: 100%;
       border-collapse: separate;
@@ -64,6 +68,7 @@
       margin-bottom: 30px;
       table-layout: fixed;
     }
+
     th, td {
       height: 90px;
       padding: 10px;
@@ -73,11 +78,13 @@
       box-sizing: border-box;
       word-wrap: break-word;
     }
+
     th {
       background: var(--header-bg);
       color: var(--header-text);
       font-weight: bold;
     }
+
     td {
       background: var(--card-bg);
       border-radius: 12px;
@@ -96,15 +103,18 @@
       padding: 10px;
       box-sizing: border-box;
     }
+
     .shabbat {
       background: var(--shabbat-bg) !important;
       color: var(--shabbat-text) !important;
     }
+
     .holiday {
       background: var(--holiday-bg) !important;
       color: var(--holiday-text) !important;
       border: 2px solid #f6a5b4;
     }
+    
     .shabbat.holiday {
       background: linear-gradient(135deg, #ffe8f5 60%, #ffe4bd 100%) !important;
       color: #fff !important;
@@ -140,12 +150,22 @@
       border-radius: 8px; text-decoration: none;
     }
 
+    @font-face {
+      font-family: 'Taamey Frank';
+      src: url('https://www.sefaria.org.il/static/fonts/Taamey-Frank/Taamey%20Frank.ttf') format('truetype');
+      font-display: swap;
+    }
+
     .dibur {
       font-weight: bold;
       color: #c0392b;
     }
 
-    .source-text, .comment-text { line-height: 1.8; }
+    .source-text, .comment-text {
+      font-family: 'Taamey Frank', 'Times New Roman', serif;
+      font-size: 1.3em;
+      line-height: 1.8;
+    }
     .commentary-item { margin-bottom: 20px; }
     .commentator-name { font-weight: bold; color: var(--shabbat-text); }
 
