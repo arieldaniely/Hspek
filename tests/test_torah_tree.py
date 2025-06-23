@@ -33,8 +33,11 @@ def load_module():
         ics = types.ModuleType('ics')
         ics.Calendar = type('Calendar', (), {})
         ics.Event = type('Event', (), {})
-        ics.DisplayAlarm = type('DisplayAlarm', (), {})
+        alarm_module = types.ModuleType('ics.alarm')
+        alarm_module.DisplayAlarm = type('DisplayAlarm', (), {})
+        ics.alarm = alarm_module
         sys.modules['ics'] = ics
+        sys.modules['ics.alarm'] = alarm_module
 
     if 'tkinter' not in sys.modules:
         tk = types.ModuleType('tkinter')

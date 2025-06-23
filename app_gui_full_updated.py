@@ -61,8 +61,8 @@ class TorahTreeApp(ctk.CTk):
         # משתנה לבחירת מצב הלוח: 0 = חלוקה לפי טווח תאריכים, 1 = לפי הספק יומי קבוע
         self.schedule_mode_var = tk.IntVar(value=0)  # 0 = עד תאריך, 1 = הספק יומי
 
-        # הגדרת זמן התראה ב-ICS ומסגרת ההגדרות הצדדית
-        self.alarm_minutes_before = tk.IntVar(value=30)
+        # הגדרת שעת התראה בקובצי ICS
+        self.alarm_time_str = tk.StringVar(value="08:00")
         self.settings_window = None
 
         days_of_week = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"]
@@ -283,8 +283,8 @@ class TorahTreeApp(ctk.CTk):
         self.settings_window = ctk.CTkFrame(self, fg_color="white", width=800)
         self.settings_window.place(relx=1.0, y=0, relheight=1.0, anchor="ne")
 
-        ctk.CTkLabel(self.settings_window, text="התרעה לפני שיעור (בדקות):").pack(pady=(10,0))
-        ctk.CTkEntry(self.settings_window, textvariable=self.alarm_minutes_before).pack(fill="x", padx=10, pady=6)
+        ctk.CTkLabel(self.settings_window, text="שעת התראה (HH:MM):").pack(pady=(10,0))
+        ctk.CTkEntry(self.settings_window, textvariable=self.alarm_time_str).pack(fill="x", padx=10, pady=6)
         ctk.CTkButton(self.settings_window, text="סגור", command=self.toggle_settings_panel).pack(pady=(5,10))
 
     def choose_file(self):
@@ -608,7 +608,7 @@ class TorahTreeApp(ctk.CTk):
                 tree_data=self.data,
                 no_study_weekdays_set=no_study_weekdays_set,
                 units_per_day=self.units_per_day_var.get() if self.schedule_mode_var.get() == 1 else None,
-                alarm_minutes_before=self.alarm_minutes_before.get() if self.alarm_minutes_before.get() > 0 else None
+                alarm_time=self.alarm_time_str.get() if self.alarm_time_str.get() else None
             )
             messagebox.showinfo("הצלחה", f"הקובץ נשמר:\n{saved_path}")
         except Exception as e:

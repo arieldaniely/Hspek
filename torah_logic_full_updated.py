@@ -1,5 +1,6 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from ics import Calendar, Event
+from ics.alarm import DisplayAlarm
 import json
 import os
 from urllib.parse import quote_plus, quote
@@ -864,6 +865,7 @@ def write_ics_file(
     tree_data,
     no_study_weekdays_set,
     units_per_day=None,
+    alarm_time: str | None = None,
     link_template: str = DEFAULT_LESSON_LINK,
 ):
     """
@@ -877,6 +879,7 @@ def write_ics_file(
         tree_data (dict): עץ הנתונים המלא.
         no_study_weekdays_set (set[int]): קבוצת ימי חופשה שבועיים.
         units_per_day (int, optional): הספק יומי (אם רלוונטי).
+        alarm_time (str, optional): שעת התראה יומית בפורמט ``HH:MM``.
         link_template (str, optional):
             תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
@@ -917,6 +920,13 @@ def write_ics_file(
         e.description = day_data['description'] + (f"\n{link}" if link else "")
         if link:
             e.url = link
+        if alarm_time:
+            try:
+                alarm_t = datetime.strptime(alarm_time, "%H:%M").time()
+                alarm_dt = datetime.combine(day_data['date'], alarm_t)
+                e.alarms.append(DisplayAlarm(trigger=alarm_dt))
+            except ValueError:
+                pass
         cal.events.add(e)
 
     # יצירת שם קובץ חכם
@@ -1084,7 +1094,8 @@ if __name__ == '__main__':
         start_date=start,
         end_date=end,
         tree_data=tree_data,
-        no_study_weekdays_set=example_no_study_days
+        no_study_weekdays_set=example_no_study_days,
+        alarm_time="08:00"
     )
     print("-" * 20)
     write_bookmark_html(
