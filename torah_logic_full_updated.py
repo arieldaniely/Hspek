@@ -915,18 +915,23 @@ def write_ics_file(
         link = link_template.format(ref=quote(ref, safe='.-_%')) if ref else ""
         e = Event()
         e.name = event_base_name
-        e.begin = day_data['date'].strftime('%Y-%m-%d')
-        e.make_all_day()
-        e.description = day_data['description'] + (f"\n{link}" if link else "")
-        if link:
-            e.url = link
+        start_str = day_data['date'].strftime('%Y-%m-%d')
+        alarm_dt = None
         if alarm_time:
             try:
                 alarm_t = datetime.strptime(alarm_time, "%H:%M").time()
                 alarm_dt = datetime.combine(day_data['date'], alarm_t)
-                e.alarms.append(DisplayAlarm(trigger=alarm_dt))
+                start_str = alarm_dt
             except ValueError:
                 pass
+        e.begin = start_str
+        if not alarm_time:
+            e.make_all_day()
+        e.description = day_data['description'] + (f"\n{link}" if link else "")
+        if link:
+            e.url = link
+        if alarm_dt:
+            e.alarms.append(DisplayAlarm(trigger=alarm_dt))
         cal.events.add(e)
 
     # יצירת שם קובץ חכם
