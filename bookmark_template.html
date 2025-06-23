@@ -267,14 +267,21 @@
       }
 
       const apiUrl = `https://www.sefaria.org.il/api/texts/${ref}?commentary=1&context=0`;
+      let data;
       try {
         const res = await fetch(apiUrl);
         if (!res.ok) throw new Error();
-        const data = await res.json();
-        sessionStorage.setItem(ref, JSON.stringify(data));
-        display(data);
+        data = await res.json();
       } catch {
         displayError('טעינה נכשלה. נסו שוב מאוחר יותר.');
+        return;
+      }
+
+      display(data);
+      try {
+        sessionStorage.setItem(ref, JSON.stringify(data));
+      } catch (e) {
+        console.warn('Unable to cache data in sessionStorage', e);
       }
     });
 
