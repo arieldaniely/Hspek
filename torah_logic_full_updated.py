@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, time
 from ics import Calendar, Event, DisplayAlarm
 import json
 import os
@@ -602,9 +602,14 @@ def generate_smart_filename(titles_list, mode, start_date, end_date, tree_data, 
             time_str = "בחודש"
         elif 58 < days < 63: # טווח של חודשיים בערך
             time_str = "בחודשיים"
+        elif (days % 30) < 2 or (days % 30) > 28: # טווח של חודשים שלמים בערך
+            time_str = "ב{days // 30} חודשים"
         elif days % 7 == 0: # אם מתחלק בדיוק בשבועות
             weeks = days // 7
-            time_str = "בשבוע" if weeks == 1 else f"ב-{weeks}-שבועות"
+            if weeks == 2:
+                time_str = "בשבועיים"
+            else:
+                time_str = "בשבוע" if weeks == 1 else f"ב-{weeks}-שבועות"
         else:
             time_str = f"ב-{days}-ימים"
     # הרכבת שם הקובץ הסופי
@@ -878,7 +883,7 @@ def write_ics_file(
     no_study_weekdays_set,
     units_per_day=None,
     skip_holidays=False,
-    alarm_minutes_before=None,
+    alarm_time: time | None = None,
     link_template: str = DEFAULT_LESSON_LINK,
 ):
     """
@@ -893,7 +898,7 @@ def write_ics_file(
         no_study_weekdays_set (set[int]): קבוצת ימי חופשה שבועיים.
         units_per_day (int, optional): הספק יומי (אם רלוונטי).
         skip_holidays (bool, optional): האם לדלג על חגים בלוח הלימוד.
-        alarm_minutes_before (int | None, optional): דקות לפני תחילת האירוע ליצירת התראה.
+        alarm_time (datetime.time | None, optional): שעת התראה לאירוע. אם ``None`` לא תוגדר התראה.
         link_template (str, optional):
             תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
@@ -932,8 +937,9 @@ def write_ics_file(
         e.name = event_base_name
         e.begin = day_data['date'].strftime('%Y-%m-%d')
         e.make_all_day()
-        if alarm_minutes_before:
-            e.alarms = [DisplayAlarm(trigger=timedelta(minutes=-alarm_minutes_before))]
+        if alarm_time:
+            alarm_dt = datetime.combine(day_data['date'], alarm_time)
+            e.alarms = [DisplayAlarm(trigger=alarm_dt)]
         e.description = day_data['description'] + (f"\n{link}" if link else "")
         if link:
             e.url = link
