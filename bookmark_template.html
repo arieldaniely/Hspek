@@ -409,6 +409,28 @@
     }
   }
 
+  function splitRefRange(rangeRef) {
+    if (!rangeRef.includes('-')) return [rangeRef];
+    const m = rangeRef.match(/^([^\.]+)\.(\d+)([ab])-(\d+)([ab])$/);
+    if (!m) return [rangeRef];
+    const base = m[1];
+    let num = parseInt(m[2], 10);
+    let side = m[3];
+    const endNum = parseInt(m[4], 10);
+    const endSide = m[5];
+    const arr = [];
+    while (num < endNum || (num === endNum && side <= endSide)) {
+      arr.push(`${base}.${num}${side}`);
+      if (side === 'a') {
+        side = 'b';
+      } else {
+        side = 'a';
+        num++;
+      }
+    }
+    return arr;
+  }
+
   async function loadSefaria(sefariaUrl) {
     modalTextContainer.style.display = 'none';
     modalCommentaryContainer.style.display = 'none';
@@ -426,26 +448,52 @@
       return;
     }
 
+    const segments = splitRefRange(ref);
     const cached = sessionStorage.getItem(ref);
     if (cached) {
       display(JSON.parse(cached));
       return;
     }
 
-    const apiUrl = `https://www.sefaria.org.il/api/texts/${ref}?commentary=1&context=0`;
-    let data;
-    try {
-      const res = await fetch(apiUrl);
-      if (!res.ok) throw new Error();
-      data = await res.json();
-    } catch {
-      displayError('טעינה נכשלה. נסו שוב מאוחר יותר.');
-      return;
+    const combined = { heRef: '', he: [], commentary: [] };
+    let firstHeb = '';
+    let lastHeb = '';
+
+    for (const seg of segments) {
+      let segData;
+      const segCached = sessionStorage.getItem(seg);
+      if (segCached) {
+        segData = JSON.parse(segCached);
+      } else {
+        const apiUrl = `https://www.sefaria.org.il/api/texts/${seg}?commentary=1&context=0`;
+        try {
+          const res = await fetch(apiUrl);
+          if (!res.ok) throw new Error();
+          segData = await res.json();
+        } catch {
+          displayError('טעינה נכשלה. נסו שוב מאוחר יותר.');
+          return;
+        }
+        try {
+          sessionStorage.setItem(seg, JSON.stringify(segData));
+        } catch (e) {
+          console.warn('Unable to cache data in sessionStorage', e);
+        }
+      }
+
+      if (!firstHeb) firstHeb = segData.heRef;
+      lastHeb = segData.heRef;
+      if (Array.isArray(segData.he)) combined.he.push(...segData.he);
+      if (Array.isArray(segData.commentary)) {
+        combined.commentary.push(...segData.commentary);
+      }
     }
 
-    display(data);
+    combined.heRef = segments.length > 1 ? `${firstHeb} - ${lastHeb}` : firstHeb;
+
+    display(combined);
     try {
-      sessionStorage.setItem(ref, JSON.stringify(data));
+      sessionStorage.setItem(ref, JSON.stringify(combined));
     } catch (e) {
       console.warn('Unable to cache data in sessionStorage', e);
     }
