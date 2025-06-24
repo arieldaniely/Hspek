@@ -110,3 +110,16 @@ def test_build_sefaria_ref_detects_category(torah_tree):
     }
     ref = torah_tree.build_sefaria_ref(first, last, "פרקים")
     assert ref == "משנה_ברכות.א-ב"
+
+
+def test_build_sefaria_ref_cross_book(torah_tree):
+    first = {
+        "book_display_name": "תנך / תורה / בראשית",
+        "chapter_name": "פרק נ",
+    }
+    last = {
+        "book_display_name": "תנך / תורה / שמות",
+        "chapter_name": "פרק ב",
+    }
+    ref = torah_tree.build_sefaria_ref(first, last, "פרקים")
+    assert ref == ["בראשית.נ", "שמות.א-ב"]
