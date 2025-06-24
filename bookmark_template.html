@@ -139,6 +139,10 @@
       padding: 10px;
       box-sizing: border-box;
     }
+    .multi-link-container a {
+      display: inline-block;
+      margin-top: 4px;
+    }
 
     .shabbat {
       background: var(--shabbat-bg) !important;
@@ -242,20 +246,19 @@
                          {% if not day.is_in_month %}{{ cls.append('not-in-month') }}{% endif %}
                          {% if day.is_shabbat %}{{ cls.append('shabbat') }}{% endif %}
                          {% if day.is_holiday %}{{ cls.append('holiday') }}{% endif %}
-                         {% if day.link %}{{ cls.append('has-link') }}{% endif %}
+                         {% if day.links %}{{ cls.append('has-link') }}{% endif %}
                          {{ ' '.join(cls) }}">
                 {% if day.hebrew_date %}
-                  {% if day.link %}
-                    <a href="{{ day.link }}" class="study-link">
-                      <div class="day-number">{{ day.hebrew_day_number }}</div>
-                      {% if day.label %}<div class="label">{{ day.label }}</div>{% endif %}
-                      {% if day.study_portion %}<div class="study">{{ day.study_portion }}</div>{% endif %}
-                    </a>
-                  {% else %}
                     <div class="day-number">{{ day.hebrew_day_number }}</div>
                     {% if day.label %}<div class="label">{{ day.label }}</div>{% endif %}
                     {% if day.study_portion %}<div class="study">{{ day.study_portion }}</div>{% endif %}
-                  {% endif %}
+                    {% if day.links %}
+                        <div class="multi-link-container">
+                        {% for l in day.links %}
+                            <a href="{{ l }}" class="study-link">קישור {{ loop.index }}</a>{% if not loop.last %}<br>{% endif %}
+                        {% endfor %}
+                        </div>
+                    {% endif %}
                 {% endif %}
               </td>
             {% endfor %}

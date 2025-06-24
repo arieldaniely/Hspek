@@ -2,6 +2,7 @@ from datetime import date, timedelta, datetime, time
 from ics import Calendar, Event, DisplayAlarm
 import json
 import os
+import re
 from urllib.parse import quote_plus, quote
 
 from pyluach import dates, hebrewcal, parshios
@@ -780,12 +781,23 @@ def build_description(first_unit, last_unit, mode):
             desc = f"מ-{first_unit['book_display_name']} {first_unit['unit_type']} {first_unit['unit_display_name']} עד {last_unit['book_display_name']} {last_unit['unit_type']} {last_unit['unit_display_name']}"
     return desc
 
-def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | None:
-    """Construct a Sefaria-compatible reference.
+TORAH_TREE_CACHE = None
+
+def _load_torah_tree():
+    """Load and cache the main Torah tree data used for book lengths."""
+    global TORAH_TREE_CACHE
+    if TORAH_TREE_CACHE is None:
+        with open("torah_tree_data_full.json", "r", encoding="utf-8") as f:
+            TORAH_TREE_CACHE = json.load(f)
+    return TORAH_TREE_CACHE
+
+def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | list[str] | None:
+    """Construct Sefaria reference(s).
 
     ``mode`` indicates the unit granularity (פרקים/משניות/דפים/עמודים) only.
     The content category (Tanakh/Mishnah/Talmud) is detected from the path of
-    ``first_unit``.
+    ``first_unit``.  When the portion spans two different books, two references
+    are returned.
     """
     with open("sefaria_masechet_map.json", "r", encoding="utf-8") as f:
         SEFARIA_MASECHET_MAP = json.load(f)
@@ -820,8 +832,9 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | Non
 
     sb, sch = extract(first_unit)
     eb, ech = extract(last_unit)
-    if not sb or (eb and eb != sb):
+    if not sb:
         return None
+    cross_book = eb and eb != sb
 
     category = detect_category(first_unit)
     book = sb
@@ -833,6 +846,112 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | Non
     elif category == "mishnah":
         if not book.startswith("משנה_"):
             book = f"משנה_{book}"
+
+    if cross_book:
+        tree = _load_torah_tree()
+        first_path_parts = first_unit["book_display_name"].split(" / ")
+        if first_path_parts[-1].startswith("פרק "):
+            first_path_parts = first_path_parts[:-1]
+        first_node = _get_node_from_path(first_path_parts, tree)
+        if not first_node:
+            return None
+
+        # map second book name
+        category2 = detect_category(last_unit)
+        book2 = eb
+        if category2 == "talmud":
+            masechet = book2.replace("מסכת ", "")
+            book2 = SEFARIA_MASECHET_MAP.get(masechet)
+            if not book2:
+                return None
+        elif category2 == "mishnah":
+            if not book2.startswith("משנה_"):
+                book2 = f"משנה_{book2}"
+
+        if mode == "פרקים":
+            last_chap_num = None
+            if "פרקים" in first_node and isinstance(first_node["פרקים"], int):
+                last_chap_num = first_node["פרקים"]
+            else:
+                ch_keys = [k for k in first_node if k.startswith("פרק ")]
+                if ch_keys:
+                    last_chap_num = max(
+                        Gematria.gematria_to_int(k.split()[-1]) for k in ch_keys
+                    )
+            if last_chap_num is None:
+                return None
+
+            end_first = _convert_int_to_hebrew_gematria(last_chap_num)
+            s = first_unit.get("chapter_name", "").split()[-1]
+            if not s or not ech:
+                return None
+
+            ref1 = f"{book}.{s}" if s == end_first else f"{book}.{s}-{end_first}"
+            ref2 = f"{book2}.א" if ech == "א" else f"{book2}.א-{ech}"
+            return [ref1, ref2]
+
+        if mode == "משניות":
+            ch_keys = [k for k in first_node if k.startswith("פרק ")]
+            if not ch_keys:
+                return None
+            last_ch_num = max(
+                Gematria.gematria_to_int(k.split()[-1]) for k in ch_keys
+            )
+            end_ch_name = _convert_int_to_hebrew_gematria(last_ch_num)
+            last_ch_node = first_node.get(f"פרק {end_ch_name}")
+            if not isinstance(last_ch_node, dict) or "משניות" not in last_ch_node:
+                return None
+            last_mish = last_ch_node["משניות"]
+            s_m = first_unit.get("unit_num_int")
+            if sch is None or s_m is None or ech is None or last_mish is None:
+                return None
+            ref1 = f"{book}.{sch}.{s_m}-{end_ch_name}.{last_mish}"
+            ref2 = (
+                f"{book2}.א.1"
+                if ech == "א" and last_unit.get("unit_num_int") == 1
+                else f"{book2}.א.1-{ech}.{last_unit.get('unit_num_int')}"
+            )
+            return [ref1, ref2]
+
+        if mode == "דפים":
+            end_str = first_node.get("עמוד אחרון")
+            if not end_str:
+                return None
+            m = re.match(r"(\d+)([ab])", end_str)
+            if not m:
+                return None
+            end_page = int(m.group(1))
+            end_side = m.group(2)
+            s_d = first_unit.get("unit_num_int")
+            e_d = last_unit.get("unit_num_int")
+            if s_d is None or e_d is None:
+                return None
+            ref1 = f"{book}.{s_d}a-{end_page}{end_side}"
+            ref2 = f"{book2}.2a-{e_d}b" if e_d != 2 else f"{book2}.2a"
+            return [ref1, ref2]
+
+        if mode == "עמודים":
+            end_str = first_node.get("עמוד אחרון")
+            if not end_str:
+                return None
+            m = re.match(r"(\d+)([ab])", end_str)
+            if not m:
+                return None
+            end_page = int(m.group(1))
+            end_side = m.group(2)
+            s_d = first_unit.get("unit_num_int")
+            s_side = first_unit.get("side")
+            e_d = last_unit.get("unit_num_int")
+            e_side = last_unit.get("side")
+            if None in (s_d, s_side, e_d, e_side):
+                return None
+            ref1 = f"{book}.{s_d}{s_side}-{end_page}{end_side}"
+            start_second = "2a"
+            end_second = f"{e_d}{e_side}"
+            ref2 = (
+                f"{book2}.{start_second}-{end_second}" if end_second != start_second else f"{book2}.{start_second}"
+            )
+            return [ref1, ref2]
 
     if mode == "פרקים":
         s = first_unit.get("chapter_name", "").split()[-1]
@@ -932,7 +1051,12 @@ def write_ics_file(
     # יצירת אירועים בלוח השנה
     for day_data in schedule:
         ref = build_sefaria_ref(day_data["first_unit"], day_data["last_unit"], mode)
-        link = link_template.format(ref=quote(ref, safe='.-_%')) if ref else ""
+        links = []
+        if ref:
+            if isinstance(ref, list):
+                links = [link_template.format(ref=quote(r, safe='.-_%')) for r in ref]
+            else:
+                links = [link_template.format(ref=quote(ref, safe='.-_%'))]
         e = Event()
         e.name = event_base_name
         e.begin = day_data['date'].strftime('%Y-%m-%d')
@@ -940,9 +1064,11 @@ def write_ics_file(
         if alarm_time:
             alarm_dt = datetime.combine(day_data['date'], alarm_time)
             e.alarms = [DisplayAlarm(trigger=alarm_dt)]
-        e.description = day_data['description'] + (f"\n{link}" if link else "")
-        if link:
-            e.url = link
+        if links:
+            e.description = day_data['description'] + "\n" + "\n".join(links)
+            e.url = links[0]
+        else:
+            e.description = day_data['description']
         cal.events.add(e)
 
     # יצירת שם קובץ חכם
@@ -996,16 +1122,19 @@ def write_bookmark_html(
 
     actual_end_date = schedule[-1]["date"] if units_per_day else end_date
     # מיפוי תאריכים לתיאורי הלימוד והקישורים שלהם
-    study_map = {
-        item["date"]: {
+    study_map = {}
+    for item in schedule:
+        ref = build_sefaria_ref(item["first_unit"], item["last_unit"], mode)
+        links = []
+        if ref:
+            if isinstance(ref, list):
+                links = [link_template.format(ref=quote(r, safe='.-_%')) for r in ref]
+            else:
+                links = [link_template.format(ref=quote(ref, safe='.-_%'))]
+        study_map[item["date"]] = {
             "desc": item["description"],
-            "link": link_template.format(
-                ref=quote(build_sefaria_ref(item["first_unit"], item["last_unit"], mode), safe='.-_%'))
-                if build_sefaria_ref(item["first_unit"], item["last_unit"], mode)
-                else "",
+            "links": links,
         }
-        for item in schedule
-    }
 
     # אוספים את כל הימים בטווח, וממפים אותם לשנה וחודש עברי
     day_map = defaultdict(list)
@@ -1070,7 +1199,7 @@ def write_bookmark_html(
                         "hebrew_day_number": hebrew_day_number,
                         "label": label,
                         "study_portion": study_info["desc"] if is_in_month and study_info else "",
-                        "link": study_info["link"] if is_in_month and study_info else "",
+                        "links": study_info["links"] if is_in_month and study_info else [],
                         "is_shabbat": current_day.weekday() == 5 if is_in_month else False,
                         "is_holiday": bool(holiday) if is_in_month else False
                     })
