@@ -264,7 +264,7 @@
                          {% if day.is_shabbat %}{{ cls.append('shabbat') }}{% endif %}
                          {% if day.is_holiday %}{{ cls.append('holiday') }}{% endif %}
                          {% if day.links %}{{ cls.append('has-link') }}{% endif %}
-                         {{ ' '.join(cls) }}"{% if day.links %} data-links='{{ day.links | tojson | safe }}'{% endif %}>
+                         {{ ' '.join(cls) }}"{% if day.links %} data-links='{{ day.links | tojson | safe }}' data-origlink="{{ day.orig_link }}"{% endif %}>
                 {% if day.hebrew_date %}
                     <div class="day-number">{{ day.hebrew_day_number }}</div>
                     {% if day.label %}<div class="label">{{ day.label }}</div>{% endif %}
@@ -398,104 +398,56 @@
     modalCommentaryContainer.innerHTML = '';
   }
 
-  function updateNav() {
-    if (currentLinks.length <= 1) {
-      navArrows.style.display = 'none';
-    } else {
-      navArrows.style.display = 'flex';
-      prevBtn.disabled = currentIndex === 0;
-      nextBtn.disabled = currentIndex === currentLinks.length - 1;
-      linkCounter.textContent = `${currentIndex + 1} / ${currentLinks.length}`;
-    }
-  }
 
-  async function loadSefaria(sefariaUrl) {
-    modalTextContainer.style.display = 'none';
-    modalCommentaryContainer.style.display = 'none';
-    modalLoader.style.display = 'block';
-    showModal();
-
-    modalSefariaLink.href = sefariaUrl;
-
+  async function fetchSefariaData(sefariaUrl) {
     let ref = '';
     try {
       const url = new URL(sefariaUrl);
       ref = url.pathname.substring(1).replace(/^he\//, '').replace(/\/he$/, '').split('?')[0];
     } catch {
-      displayError('קישור לא תקין');
-      return;
+      throw new Error('קישור לא תקין');
     }
 
     const cached = sessionStorage.getItem(ref);
     if (cached) {
-      display(JSON.parse(cached));
-      return;
+      return JSON.parse(cached);
     }
 
     const apiUrl = `https://www.sefaria.org.il/api/texts/${ref}?commentary=1&context=0`;
-    let data;
-    try {
-      const res = await fetch(apiUrl);
-      if (!res.ok) throw new Error();
-      data = await res.json();
-    } catch {
-      displayError('טעינה נכשלה. נסו שוב מאוחר יותר.');
-      return;
-    }
-
-    display(data);
+    const res = await fetch(apiUrl);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
     try {
       sessionStorage.setItem(ref, JSON.stringify(data));
     } catch (e) {
       console.warn('Unable to cache data in sessionStorage', e);
     }
+    return data;
   }
 
-  modalCloseBtn.addEventListener('click', hideModal);
-  modal.addEventListener('click', e => { if (e.target === modal) hideModal(); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideModal(); });
+  async function loadSefaria(sefariaUrls, origUrl) {
+    const urls = Array.isArray(sefariaUrls) ? sefariaUrls : [sefariaUrls];
+    modalTextContainer.style.display = 'none';
+    modalCommentaryContainer.style.display = 'none';
+    modalLoader.style.display = 'block';
+    showModal();
 
-  prevBtn.addEventListener('click', () => {
-    if (currentIndex > 0) {
-      currentIndex--;
-      updateNav();
-      loadSefaria(currentLinks[currentIndex]);
-    }
-  });
+    modalSefariaLink.href = origUrl || urls[0];
+    navArrows.style.display = 'none';
 
-  nextBtn.addEventListener('click', () => {
-    if (currentIndex < currentLinks.length - 1) {
-      currentIndex++;
-      updateNav();
-      loadSefaria(currentLinks[currentIndex]);
-    }
-  });
+    let textHtml = '';
+    const names = [];
+    const grouped = new Map();
 
-  document.body.addEventListener('click', async event => {
-    const cell = event.target.closest('td.has-link');
-    if (!cell) return;
-    event.preventDefault();
+    for (const u of urls) {
+      let data;
+      try {
+        data = await fetchSefariaData(u);
+      } catch {
+        continue;
+      }
 
-    try {
-      currentLinks = JSON.parse(cell.dataset.links || '[]');
-    } catch {
-      currentLinks = [];
-    }
-    if (currentLinks.length === 0) return;
-    currentIndex = 0;
-    updateNav();
-    loadSefaria(currentLinks[currentIndex]);
-  });
-
-    function display(data) {
-      modalLoader.style.display = 'none';
-      modalTextContainer.style.display = 'block';
-      modalCommentaryContainer.style.display = 'block';
-
-      modalTextContainer.innerHTML = `<h3>${data.heRef}</h3><div class="source-text">${data.he.join('<br>')}</div>`;
-
-      const names = [];
-      const grouped = new Map();
+      textHtml += `<h3>${data.heRef}</h3><div class="source-text">${data.he.join('<br>')}</div>`;
 
       (data.commentary || []).forEach(c => {
         const name = c.collectiveTitle?.he || c.commentator || 'לא ידוע';
@@ -512,6 +464,39 @@
         if (!grouped.has(name)) grouped.set(name, []);
         grouped.get(name).push(highlighted);
       });
+    }
+
+    displayAggregated(textHtml, names, grouped);
+  }
+
+  modalCloseBtn.addEventListener('click', hideModal);
+  modal.addEventListener('click', e => { if (e.target === modal) hideModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideModal(); });
+
+  prevBtn.addEventListener('click', () => {});
+  nextBtn.addEventListener('click', () => {});
+
+  document.body.addEventListener('click', async event => {
+    const cell = event.target.closest('td.has-link');
+    if (!cell) return;
+    event.preventDefault();
+
+    try {
+      currentLinks = JSON.parse(cell.dataset.links || '[]');
+    } catch {
+      currentLinks = [];
+    }
+    const orig = cell.dataset.origlink || currentLinks[0] || '#';
+    if (currentLinks.length === 0) return;
+    loadSefaria(currentLinks, orig);
+  });
+
+    function displayAggregated(textHtml, names, grouped) {
+      modalLoader.style.display = 'none';
+      modalTextContainer.style.display = 'block';
+      modalCommentaryContainer.style.display = 'block';
+
+      modalTextContainer.innerHTML = textHtml;
 
       updateCommentaryList(names);
 
