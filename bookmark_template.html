@@ -473,8 +473,27 @@
   modal.addEventListener('click', e => { if (e.target === modal) hideModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') hideModal(); });
 
-  prevBtn.addEventListener('click', () => {});
-  nextBtn.addEventListener('click', () => {});
+  function updateNav() {
+    linkCounter.textContent = `${currentIndex + 1} / ${currentLinks.length}`;
+    prevBtn.disabled = currentIndex === 0;
+    nextBtn.disabled = currentIndex === currentLinks.length - 1;
+    navArrows.style.display = currentLinks.length > 1 ? 'flex' : 'none';
+  }
+
+  prevBtn.addEventListener('click', () => {
+    if (currentIndex > 0) {
+      currentIndex--;
+      loadSefaria(currentLinks[currentIndex], currentLinks[currentIndex]);
+      updateNav();
+    }
+  });
+  nextBtn.addEventListener('click', () => {
+    if (currentIndex < currentLinks.length - 1) {
+      currentIndex++;
+      loadSefaria(currentLinks[currentIndex], currentLinks[currentIndex]);
+      updateNav();
+    }
+  });
 
   document.body.addEventListener('click', async event => {
     const cell = event.target.closest('td.has-link');
@@ -486,9 +505,11 @@
     } catch {
       currentLinks = [];
     }
-    const orig = cell.dataset.origlink || currentLinks[0] || '#';
+    currentIndex = 0;
     if (currentLinks.length === 0) return;
-    loadSefaria(currentLinks, orig);
+    updateNav();
+    const orig = cell.dataset.origlink || currentLinks[currentIndex] || '#';
+    loadSefaria(currentLinks[currentIndex], orig);
   });
 
     function displayAggregated(textHtml, names, grouped) {
@@ -509,6 +530,7 @@
       } else {
         modalCommentaryContainer.innerHTML = '<div class="comment-text">אין פרשנים זמינים</div>';
       }
+      updateNav();
     }
 
     function displayError(msg) {
