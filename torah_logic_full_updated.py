@@ -729,6 +729,7 @@ def _generate_study_schedule(
                         "description": desc,
                         "first_unit": first_unit,
                         "last_unit": last_unit,
+                        "units": todays_units,
                     })
                     unit_idx += num_today
                 day_idx += 1 # קדם אינדקס יום לימוד
@@ -746,6 +747,7 @@ def _generate_study_schedule(
                     "description": desc,
                     "first_unit": first_unit,
                     "last_unit": last_unit,
+                    "units": todays_units,
                 })
                 unit_idx += len(todays_units)
             current_date += timedelta(days=1)
@@ -1124,16 +1126,29 @@ def write_bookmark_html(
     # מיפוי תאריכים לתיאורי הלימוד והקישורים שלהם
     study_map = {}
     for item in schedule:
-        ref = build_sefaria_ref(item["first_unit"], item["last_unit"], mode)
-        links = []
-        if ref:
-            if isinstance(ref, list):
-                links = [link_template.format(ref=quote(r, safe='.-_%')) for r in ref]
+        orig_ref = build_sefaria_ref(item["first_unit"], item["last_unit"], mode)
+        orig_link = ""
+        if orig_ref:
+            if isinstance(orig_ref, list):
+                orig_link = link_template.format(ref=quote(orig_ref[0], safe='.-_%'))
             else:
-                links = [link_template.format(ref=quote(ref, safe='.-_%'))]
+                orig_link = link_template.format(ref=quote(orig_ref, safe='.-_%'))
+
+        unit_links = []
+        for unit in item.get("units", []):
+            ref = build_sefaria_ref(unit, unit, mode)
+            if ref:
+                if isinstance(ref, list):
+                    unit_links.extend(
+                        [link_template.format(ref=quote(r, safe='.-_%')) for r in ref]
+                    )
+                else:
+                    unit_links.append(link_template.format(ref=quote(ref, safe='.-_%')))
+
         study_map[item["date"]] = {
             "desc": item["description"],
-            "links": links,
+            "links": unit_links,
+            "orig_link": orig_link,
         }
 
     # אוספים את כל הימים בטווח, וממפים אותם לשנה וחודש עברי
