@@ -2,6 +2,7 @@ from datetime import date, timedelta, datetime, time
 from ics import Calendar, Event, DisplayAlarm
 import json
 import os
+import re
 from urllib.parse import quote_plus, quote
 
 from pyluach import dates, hebrewcal, parshios
@@ -846,26 +847,16 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | lis
         if not book.startswith("משנה_"):
             book = f"משנה_{book}"
 
-    if cross_book and mode == "פרקים" and category == "tanakh":
+    if cross_book:
         tree = _load_torah_tree()
-        node = _get_node_from_path(first_unit["book_display_name"].split(" / "), tree)
-        last_chap_num = None
-        if node:
-            if "פרקים" in node and isinstance(node["פרקים"], int):
-                last_chap_num = node["פרקים"]
-            else:
-                ch_keys = [k for k in node if k.startswith("פרק ")]
-                if ch_keys:
-                    last_chap_num = max(Gematria.gematria_to_int(k.split()[-1]) for k in ch_keys)
-        if last_chap_num is None:
+        first_path_parts = first_unit["book_display_name"].split(" / ")
+        if first_path_parts[-1].startswith("פרק "):
+            first_path_parts = first_path_parts[:-1]
+        first_node = _get_node_from_path(first_path_parts, tree)
+        if not first_node:
             return None
 
-        end_first = _convert_int_to_hebrew_gematria(last_chap_num)
-        s = first_unit.get("chapter_name", "").split()[-1]
-        if not s or not ech:
-            return None
-
-        # second book mapping
+        # map second book name
         category2 = detect_category(last_unit)
         book2 = eb
         if category2 == "talmud":
@@ -877,9 +868,90 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | lis
             if not book2.startswith("משנה_"):
                 book2 = f"משנה_{book2}"
 
-        ref1 = f"{book}.{s}" if s == end_first else f"{book}.{s}-{end_first}"
-        ref2 = f"{book2}.א" if ech == "א" else f"{book2}.א-{ech}"
-        return [ref1, ref2]
+        if mode == "פרקים":
+            last_chap_num = None
+            if "פרקים" in first_node and isinstance(first_node["פרקים"], int):
+                last_chap_num = first_node["פרקים"]
+            else:
+                ch_keys = [k for k in first_node if k.startswith("פרק ")]
+                if ch_keys:
+                    last_chap_num = max(
+                        Gematria.gematria_to_int(k.split()[-1]) for k in ch_keys
+                    )
+            if last_chap_num is None:
+                return None
+
+            end_first = _convert_int_to_hebrew_gematria(last_chap_num)
+            s = first_unit.get("chapter_name", "").split()[-1]
+            if not s or not ech:
+                return None
+
+            ref1 = f"{book}.{s}" if s == end_first else f"{book}.{s}-{end_first}"
+            ref2 = f"{book2}.א" if ech == "א" else f"{book2}.א-{ech}"
+            return [ref1, ref2]
+
+        if mode == "משניות":
+            ch_keys = [k for k in first_node if k.startswith("פרק ")]
+            if not ch_keys:
+                return None
+            last_ch_num = max(
+                Gematria.gematria_to_int(k.split()[-1]) for k in ch_keys
+            )
+            end_ch_name = _convert_int_to_hebrew_gematria(last_ch_num)
+            last_ch_node = first_node.get(f"פרק {end_ch_name}")
+            if not isinstance(last_ch_node, dict) or "משניות" not in last_ch_node:
+                return None
+            last_mish = last_ch_node["משניות"]
+            s_m = first_unit.get("unit_num_int")
+            if sch is None or s_m is None or ech is None or last_mish is None:
+                return None
+            ref1 = f"{book}.{sch}.{s_m}-{end_ch_name}.{last_mish}"
+            ref2 = (
+                f"{book2}.א.1"
+                if ech == "א" and last_unit.get("unit_num_int") == 1
+                else f"{book2}.א.1-{ech}.{last_unit.get('unit_num_int')}"
+            )
+            return [ref1, ref2]
+
+        if mode == "דפים":
+            end_str = first_node.get("עמוד אחרון")
+            if not end_str:
+                return None
+            m = re.match(r"(\d+)([ab])", end_str)
+            if not m:
+                return None
+            end_page = int(m.group(1))
+            end_side = m.group(2)
+            s_d = first_unit.get("unit_num_int")
+            e_d = last_unit.get("unit_num_int")
+            if s_d is None or e_d is None:
+                return None
+            ref1 = f"{book}.{s_d}a-{end_page}{end_side}"
+            ref2 = f"{book2}.2a-{e_d}b" if e_d != 2 else f"{book2}.2a"
+            return [ref1, ref2]
+
+        if mode == "עמודים":
+            end_str = first_node.get("עמוד אחרון")
+            if not end_str:
+                return None
+            m = re.match(r"(\d+)([ab])", end_str)
+            if not m:
+                return None
+            end_page = int(m.group(1))
+            end_side = m.group(2)
+            s_d = first_unit.get("unit_num_int")
+            s_side = first_unit.get("side")
+            e_d = last_unit.get("unit_num_int")
+            e_side = last_unit.get("side")
+            if None in (s_d, s_side, e_d, e_side):
+                return None
+            ref1 = f"{book}.{s_d}{s_side}-{end_page}{end_side}"
+            start_second = "2a"
+            end_second = f"{e_d}{e_side}"
+            ref2 = (
+                f"{book2}.{start_second}-{end_second}" if end_second != start_second else f"{book2}.{start_second}"
+            )
+            return [ref1, ref2]
 
     if mode == "פרקים":
         s = first_unit.get("chapter_name", "").split()[-1]

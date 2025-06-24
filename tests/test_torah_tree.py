@@ -123,3 +123,29 @@ def test_build_sefaria_ref_cross_book(torah_tree):
     }
     ref = torah_tree.build_sefaria_ref(first, last, "פרקים")
     assert ref == ["בראשית.נ", "שמות.א-ב"]
+
+
+def test_build_sefaria_ref_cross_book_talmud_daf(torah_tree):
+    first = {
+        "book_display_name": "תלמוד בבלי / ברכות",
+        "unit_num_int": 63,
+    }
+    last = {
+        "book_display_name": "תלמוד בבלי / שבת",
+        "unit_num_int": 3,
+    }
+    ref = torah_tree.build_sefaria_ref(first, last, "דפים")
+    assert ref == ["Berakhot.63a-64a", "Shabbat.2a-3b"]
+
+
+def test_build_sefaria_ref_cross_book_mishnah(torah_tree):
+    first = {
+        "book_display_name": "משנה / זרעים / ברכות / פרק ט",
+        "unit_num_int": 4,
+    }
+    last = {
+        "book_display_name": "משנה / זרעים / פאה / פרק א",
+        "unit_num_int": 2,
+    }
+    ref = torah_tree.build_sefaria_ref(first, last, "משניות")
+    assert ref == ["משנה_ברכות.ט.4-ט.5", "משנה_פאה.א.1-א.2"]
