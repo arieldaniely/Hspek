@@ -64,6 +64,8 @@ class TorahTreeApp(ctk.CTk):
         # הגדרות לוח שנה
         self.alarm_time_var = ctk.StringVar(value="08:00")
         self.skip_holidays_var = ctk.BooleanVar(value=False)
+        # האם לעגל חצאים במספר הדפים כלפי מעלה
+        self.round_up_halves_var = ctk.BooleanVar(value=False)
         self.settings_window = None
 
         days_of_week = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"]
@@ -305,6 +307,12 @@ class TorahTreeApp(ctk.CTk):
             variable=self.skip_holidays_var
         ).pack(anchor="w", padx=10, pady=(0,6))
 
+        ctk.CTkCheckBox(
+            self.settings_window,
+            text="עגל חצאי דפים למעלה",
+            variable=self.round_up_halves_var
+        ).pack(anchor="w", padx=10, pady=(0,6))
+
     def choose_file(self):
         """
         פותח דיאלוג לבחירת קובץ JSON ומפעיל את טעינת הנתונים.
@@ -416,16 +424,19 @@ class TorahTreeApp(ctk.CTk):
         selected_items = self.tree.selection()
 
         if not selected_items or not mode: # אם אין בחירה או אין מצב ספירה
-            self.current_total_content = 0
-            self.sum_label.configure(text="האורך הכולל: 0")
+            display_total = 0
         else:
             # חישוב האורך הכולל על סמך הפריטים הנבחרים ומצב הספירה
             for iid in selected_items:
                 if iid in self.node_map:
-                    node = self.node_map[iid] # השתמש בנתונים המקוריים מהמפה
+                    node = self.node_map[iid]  # השתמש בנתונים המקוריים מהמפה
                     total += get_length_from_node(node, mode)
-            self.current_total_content = total
-            self.sum_label.configure(text=f"האורך הכולל: {self.current_total_content}")
+            display_total = math.ceil(total) if self.round_up_halves_var.get() else total
+
+        self.current_total_content = display_total
+        if display_total == int(display_total):
+            display_total = int(display_total)
+        self.sum_label.configure(text=f"האורך הכולל: {display_total}")
         
         self.calculate_and_display_daily_progress() # קריאה לחישוב והצגת ההספק/סיום
 
