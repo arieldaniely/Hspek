@@ -139,10 +139,7 @@
       padding: 10px;
       box-sizing: border-box;
     }
-    .multi-link-container a {
-      display: inline-block;
-      margin-top: 4px;
-    }
+    .multi-link-container { display: none; }
 
     .shabbat {
       background: var(--shabbat-bg) !important;
@@ -188,6 +185,26 @@
       background: var(--header-bg); color: var(--header-text);
       border: 1px solid var(--border-color);
       border-radius: 8px; text-decoration: none;
+    }
+
+    .nav-arrows {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 10px;
+      gap: 10px;
+    }
+    .nav-btn {
+      padding: 6px 12px;
+      background: var(--header-bg);
+      color: var(--header-text);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .nav-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
     }
 
     @font-face {
@@ -247,7 +264,7 @@
                          {% if day.is_shabbat %}{{ cls.append('shabbat') }}{% endif %}
                          {% if day.is_holiday %}{{ cls.append('holiday') }}{% endif %}
                          {% if day.links %}{{ cls.append('has-link') }}{% endif %}
-                         {{ ' '.join(cls) }}">
+                         {{ ' '.join(cls) }}"{% if day.links %} data-links='{{ day.links | tojson | safe }}'{% endif %}>
                 {% if day.hebrew_date %}
                     <div class="day-number">{{ day.hebrew_day_number }}</div>
                     {% if day.label %}<div class="label">{{ day.label }}</div>{% endif %}
@@ -278,6 +295,11 @@
         <div id="modal-commentary-container" style="display: none;"></div>
       </div>
       <div class="modal-footer">
+        <div class="nav-arrows">
+          <button id="prev-link" class="nav-btn">&#8592;</button>
+          <span id="link-counter"></span>
+          <button id="next-link" class="nav-btn">&#8594;</button>
+        </div>
         <a id="modal-sefaria-link" href="#" target="_blank" class="sefaria-btn">לצפייה באתר ספריא</a>
       </div>
     </div>
@@ -289,8 +311,15 @@
     const modalCloseBtn = modal.querySelector('.modal-close-btn');
     const modalTextContainer = document.getElementById('modal-text-container');
     const modalCommentaryContainer = document.getElementById('modal-commentary-container');
-    const modalSefariaLink = document.getElementById('modal-sefaria-link');
-    const modalLoader = document.getElementById('modal-loader');
+  const modalSefariaLink = document.getElementById('modal-sefaria-link');
+  const modalLoader = document.getElementById('modal-loader');
+  const prevBtn = document.getElementById('prev-link');
+  const nextBtn = document.getElementById('next-link');
+  const linkCounter = document.getElementById('link-counter');
+  const navArrows = document.querySelector('.nav-arrows');
+
+  let currentLinks = [];
+  let currentIndex = 0;
 
     const settingsBtn = document.getElementById('settings-btn');
     const settingsPanel = document.getElementById('settings-panel');
@@ -362,63 +391,101 @@
       document.body.style.overflow = 'hidden';
     }
 
-    function hideModal() {
-      modal.classList.remove('visible');
-      document.body.style.overflow = '';
-      modalTextContainer.innerHTML = '';
-      modalCommentaryContainer.innerHTML = '';
+  function hideModal() {
+    modal.classList.remove('visible');
+    document.body.style.overflow = '';
+    modalTextContainer.innerHTML = '';
+    modalCommentaryContainer.innerHTML = '';
+  }
+
+  function updateNav() {
+    if (currentLinks.length <= 1) {
+      navArrows.style.display = 'none';
+    } else {
+      navArrows.style.display = 'flex';
+      prevBtn.disabled = currentIndex === 0;
+      nextBtn.disabled = currentIndex === currentLinks.length - 1;
+      linkCounter.textContent = `${currentIndex + 1} / ${currentLinks.length}`;
+    }
+  }
+
+  async function loadSefaria(sefariaUrl) {
+    modalTextContainer.style.display = 'none';
+    modalCommentaryContainer.style.display = 'none';
+    modalLoader.style.display = 'block';
+    showModal();
+
+    modalSefariaLink.href = sefariaUrl;
+
+    let ref = '';
+    try {
+      const url = new URL(sefariaUrl);
+      ref = url.pathname.substring(1).replace(/^he\//, '').replace(/\/he$/, '').split('?')[0];
+    } catch {
+      displayError('קישור לא תקין');
+      return;
     }
 
-    modalCloseBtn.addEventListener('click', hideModal);
-    modal.addEventListener('click', e => { if (e.target === modal) hideModal(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') hideModal(); });
+    const cached = sessionStorage.getItem(ref);
+    if (cached) {
+      display(JSON.parse(cached));
+      return;
+    }
 
-    document.body.addEventListener('click', async event => {
-      const link = event.target.closest('a.study-link');
-      if (!link) return;
-      event.preventDefault();
+    const apiUrl = `https://www.sefaria.org.il/api/texts/${ref}?commentary=1&context=0`;
+    let data;
+    try {
+      const res = await fetch(apiUrl);
+      if (!res.ok) throw new Error();
+      data = await res.json();
+    } catch {
+      displayError('טעינה נכשלה. נסו שוב מאוחר יותר.');
+      return;
+    }
 
-      modalTextContainer.style.display = 'none';
-      modalCommentaryContainer.style.display = 'none';
-      modalLoader.style.display = 'block';
-      showModal();
+    display(data);
+    try {
+      sessionStorage.setItem(ref, JSON.stringify(data));
+    } catch (e) {
+      console.warn('Unable to cache data in sessionStorage', e);
+    }
+  }
 
-      const sefariaUrl = link.href;
-      modalSefariaLink.href = sefariaUrl;
+  modalCloseBtn.addEventListener('click', hideModal);
+  modal.addEventListener('click', e => { if (e.target === modal) hideModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideModal(); });
 
-      let ref = '';
-      try {
-        const url = new URL(sefariaUrl);
-        ref = url.pathname.substring(1).replace(/^he\//, '').replace(/\/he$/, '').split('?')[0];
-      } catch {
-        displayError('קישור לא תקין');
-        return;
-      }
+  prevBtn.addEventListener('click', () => {
+    if (currentIndex > 0) {
+      currentIndex--;
+      updateNav();
+      loadSefaria(currentLinks[currentIndex]);
+    }
+  });
 
-      const cached = sessionStorage.getItem(ref);
-      if (cached) {
-        display(JSON.parse(cached));
-        return;
-      }
+  nextBtn.addEventListener('click', () => {
+    if (currentIndex < currentLinks.length - 1) {
+      currentIndex++;
+      updateNav();
+      loadSefaria(currentLinks[currentIndex]);
+    }
+  });
 
-      const apiUrl = `https://www.sefaria.org.il/api/texts/${ref}?commentary=1&context=0`;
-      let data;
-      try {
-        const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error();
-        data = await res.json();
-      } catch {
-        displayError('טעינה נכשלה. נסו שוב מאוחר יותר.');
-        return;
-      }
+  document.body.addEventListener('click', async event => {
+    const cell = event.target.closest('td.has-link');
+    if (!cell) return;
+    event.preventDefault();
 
-      display(data);
-      try {
-        sessionStorage.setItem(ref, JSON.stringify(data));
-      } catch (e) {
-        console.warn('Unable to cache data in sessionStorage', e);
-      }
-    });
+    try {
+      currentLinks = JSON.parse(cell.dataset.links || '[]');
+    } catch {
+      currentLinks = [];
+    }
+    if (currentLinks.length === 0) return;
+    currentIndex = 0;
+    updateNav();
+    loadSefaria(currentLinks[currentIndex]);
+  });
 
     function display(data) {
       modalLoader.style.display = 'none';
