@@ -791,6 +791,20 @@ def _load_torah_tree():
             TORAH_TREE_CACHE = json.load(f)
     return TORAH_TREE_CACHE
 
+def detect_category(unit: dict) -> str | None:
+    """Return 'tanakh', 'mishnah' or 'talmud' based on the unit path."""
+    path = unit.get("book_display_name", "")
+    if not path:
+        return None
+    first = path.split(" / ")[0]
+    if first.startswith("משנה"):
+        return "mishnah"
+    if "תלמוד" in first:
+        return "talmud"
+    if first in ("תנך", "תנ""ך"):
+        return "tanakh"
+    return None
+
 def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | list[str] | None:
     """Construct Sefaria reference(s).
 
@@ -802,19 +816,6 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | lis
     with open("sefaria_masechet_map.json", "r", encoding="utf-8") as f:
         SEFARIA_MASECHET_MAP = json.load(f)
 
-    def detect_category(unit: dict) -> str | None:
-        """Return 'tanakh', 'mishnah' or 'talmud' based on the unit path."""
-        path = unit.get("book_display_name", "")
-        if not path:
-            return None
-        first = path.split(" / ")[0]
-        if first.startswith("משנה"):
-            return "mishnah"
-        if "תלמוד" in first:
-            return "talmud"
-        if first in ("תנך", "תנ""ך"):
-            return "tanakh"
-        return None
 
     def extract(unit):
         name = unit.get("book_display_name", "")
@@ -1134,6 +1135,8 @@ def write_bookmark_html(
         study_map[item["date"]] = {
             "desc": item["description"],
             "links": links,
+            "category": detect_category(item["first_unit"]),
+            "mode": mode,
         }
 
     # אוספים את כל הימים בטווח, וממפים אותם לשנה וחודש עברי
@@ -1200,6 +1203,8 @@ def write_bookmark_html(
                         "label": label,
                         "study_portion": study_info["desc"] if is_in_month and study_info else "",
                         "links": study_info["links"] if is_in_month and study_info else [],
+                        "category": study_info.get("category") if is_in_month and study_info else "",
+                        "mode": study_info.get("mode") if is_in_month and study_info else "",
                         "is_shabbat": current_day.weekday() == 5 if is_in_month else False,
                         "is_holiday": bool(holiday) if is_in_month else False
                     })

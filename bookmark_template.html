@@ -264,7 +264,7 @@
                          {% if day.is_shabbat %}{{ cls.append('shabbat') }}{% endif %}
                          {% if day.is_holiday %}{{ cls.append('holiday') }}{% endif %}
                          {% if day.links %}{{ cls.append('has-link') }}{% endif %}
-                         {{ ' '.join(cls) }}"{% if day.links %} data-links='{{ day.links | tojson | safe }}'{% endif %}>
+                         {{ ' '.join(cls) }}"{% if day.links %} data-links='{{ day.links | tojson | safe }}' data-category="{{ day.category }}" data-mode="{{ day.mode }}"{% endif %}>
                 {% if day.hebrew_date %}
                     <div class="day-number">{{ day.hebrew_day_number }}</div>
                     {% if day.label %}<div class="label">{{ day.label }}</div>{% endif %}
@@ -320,6 +320,8 @@
 
   let currentLinks = [];
   let currentIndex = 0;
+  let currentCategory = '';
+  let currentMode = '';
 
     const settingsBtn = document.getElementById('settings-btn');
     const settingsPanel = document.getElementById('settings-panel');
@@ -481,18 +483,29 @@
     } catch {
       currentLinks = [];
     }
+    currentCategory = cell.dataset.category || '';
+    currentMode = cell.dataset.mode || '';
     if (currentLinks.length === 0) return;
     currentIndex = 0;
     updateNav();
     loadSefaria(currentLinks[currentIndex]);
   });
 
-    function display(data) {
-      modalLoader.style.display = 'none';
-      modalTextContainer.style.display = 'block';
-      modalCommentaryContainer.style.display = 'block';
+  function display(data) {
+    modalLoader.style.display = 'none';
+    modalTextContainer.style.display = 'block';
+    modalCommentaryContainer.style.display = 'block';
 
-      modalTextContainer.innerHTML = `<h3>${data.heRef}</h3><div class="source-text">${data.he.join('<br>')}</div>`;
+      let joiner = '<br>';
+      if (Array.isArray(data.he)) {
+        if (currentMode === 'פרקים' && currentCategory === 'tanakh') {
+          joiner = ' ';
+        } else if (currentMode === 'פרקים' && currentCategory === 'mishnah') {
+          joiner = '<br>';
+        }
+      }
+      const content = Array.isArray(data.he) ? data.he.join(joiner) : data.he;
+      modalTextContainer.innerHTML = `<h3>${data.heRef}</h3><div class="source-text">${content}</div>`;
 
       const names = [];
       const grouped = new Map();
