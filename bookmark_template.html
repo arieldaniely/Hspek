@@ -409,26 +409,72 @@
     }
   }
 
+  function hebToInt(str) {
+    const map = {
+      'א': 1, 'ב': 2, 'ג': 3, 'ד': 4, 'ה': 5, 'ו': 6, 'ז': 7, 'ח': 8, 'ט': 9,
+      'י': 10, 'כ': 20, 'ל': 30, 'מ': 40, 'נ': 50, 'ס': 60, 'ע': 70, 'פ': 80,
+      'צ': 90, 'ק': 100, 'ר': 200, 'ש': 300, 'ת': 400
+    };
+    return str.replace(/["׳״]/g, '').split('').reduce((s, ch) => s + (map[ch] || 0), 0);
+  }
+
+  function intToHeb(num) {
+    const singles = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
+    const tens = ['', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ'];
+    const hundreds = ['', 'ק', 'ר', 'ש', 'ת'];
+    let res = '';
+    if (num >= 100) {
+      const h = Math.floor(num / 100);
+      res += hundreds[h];
+      num %= 100;
+    }
+    if (num === 15) return res + 'טו';
+    if (num === 16) return res + 'טז';
+    if (num >= 10) {
+      const t = Math.floor(num / 10);
+      res += tens[t];
+      num %= 10;
+    }
+    return res + singles[num];
+  }
+
   function splitRefRange(rangeRef) {
     if (!rangeRef.includes('-')) return [rangeRef];
-    const m = rangeRef.match(/^([^\.]+)\.(\d+)([ab])-(\d+)([ab])$/);
-    if (!m) return [rangeRef];
-    const base = m[1];
-    let num = parseInt(m[2], 10);
-    let side = m[3];
-    const endNum = parseInt(m[4], 10);
-    const endSide = m[5];
-    const arr = [];
-    while (num < endNum || (num === endNum && side <= endSide)) {
-      arr.push(`${base}.${num}${side}`);
-      if (side === 'a') {
-        side = 'b';
-      } else {
-        side = 'a';
-        num++;
+
+    const daf = rangeRef.match(/^([^\.]+)\.(\d+)([ab])-(\d+)([ab])$/);
+    if (daf) {
+      const base = daf[1];
+      let num = parseInt(daf[2], 10);
+      let side = daf[3];
+      const endNum = parseInt(daf[4], 10);
+      const endSide = daf[5];
+      const arr = [];
+      while (num < endNum || (num === endNum && side <= endSide)) {
+        arr.push(`${base}.${num}${side}`);
+        if (side === 'a') side = 'b';
+        else { side = 'a'; num++; }
+      }
+      return arr;
+    }
+
+    const chapter = rangeRef.match(/^([^\.]+)\.([^.-]+)-([^.-]+)$/);
+    if (chapter) {
+      const base = chapter[1];
+      const startRaw = chapter[2];
+      const endRaw = chapter[3];
+      const start = /^\d+$/.test(startRaw) ? parseInt(startRaw, 10) : hebToInt(startRaw);
+      const end = /^\d+$/.test(endRaw) ? parseInt(endRaw, 10) : hebToInt(endRaw);
+      if (start && end && start <= end) {
+        const arr = [];
+        for (let n = start; n <= end; n++) {
+          const part = /^\d+$/.test(startRaw) ? String(n) : intToHeb(n);
+          arr.push(`${base}.${part}`);
+        }
+        return arr;
       }
     }
-    return arr;
+
+    return [rangeRef];
   }
 
   async function loadSefaria(sefariaUrl) {
@@ -483,7 +529,11 @@
 
       if (!firstHeb) firstHeb = segData.heRef;
       lastHeb = segData.heRef;
-      if (Array.isArray(segData.he)) combined.he.push(...segData.he);
+      if (Array.isArray(segData.he)) {
+        combined.he.push(...segData.he);
+      } else if (segData.he) {
+        combined.he.push(segData.he);
+      }
       if (Array.isArray(segData.commentary)) {
         combined.commentary.push(...segData.commentary);
       }
@@ -540,7 +590,8 @@
       modalTextContainer.style.display = 'block';
       modalCommentaryContainer.style.display = 'block';
 
-      modalTextContainer.innerHTML = `<h3>${data.heRef}</h3><div class="source-text">${data.he.join('<br>')}</div>`;
+      const lines = Array.isArray(data.he) ? data.he : [data.he];
+      modalTextContainer.innerHTML = `<h3>${data.heRef}</h3><div class="source-text">${lines.join('<br>')}</div>`;
 
       const names = [];
       const grouped = new Map();
