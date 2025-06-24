@@ -11,7 +11,7 @@ from collections import defaultdict
 
 # כתובת ברירת מחדל לפתיחת חומר הלימוד היומי
 # {ref} מוחלף בהפניה המדויקת בספריא (לדוגמה "בראשית.א-ב")
-DEFAULT_LESSON_LINK = "https://www.sefaria.org.il/{ref}"
+DEFAULT_LESSON_LINK = "https://www.sefaria.org.il/he/{ref}"
 
 # ==================== עזרות גימטריה ====================
 class Gematria:
@@ -1215,6 +1215,7 @@ def write_bookmark_html(
                         "label": label,
                         "study_portion": study_info["desc"] if is_in_month and study_info else "",
                         "links": study_info["links"] if is_in_month and study_info else [],
+                        "orig_link": study_info["orig_link"] if is_in_month and study_info else "",
                         "is_shabbat": current_day.weekday() == 5 if is_in_month else False,
                         "is_holiday": bool(holiday) if is_in_month else False
                     })
