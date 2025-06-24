@@ -218,6 +218,8 @@
     <label><input type="checkbox" id="theme-checkbox"> מצב כהה</label>
     <div id="commentary-settings">
       <h4>פרשנים</h4>
+      <input id="commentary-search" type="text" placeholder="חפש פרשן" style="width: 100%; margin-bottom: 8px;" />
+      <button id="toggle-all-commentaries" style="margin-bottom: 8px;">הכל</button>
       <div id="commentary-list"></div>
     </div>
   </div>
@@ -292,20 +294,26 @@
     const settingsCloseBtn = settingsPanel.querySelector('.settings-close-btn');
     const themeCheckbox = document.getElementById('theme-checkbox');
     const commentaryList = document.getElementById('commentary-list');
+    const commentarySearch = document.getElementById('commentary-search');
+    const toggleAllBtn = document.getElementById('toggle-all-commentaries');
 
+    const NONE_SENTINEL = '__NONE__';
     let allowedCommentaries = new Set(JSON.parse(localStorage.getItem('allowedCommentaries') || '[]'));
     const allCommentaries = new Set();
 
     function updateCommentaryList(newNames = []) {
       newNames.forEach(n => allCommentaries.add(n));
+      const filter = commentarySearch.value.toLowerCase();
       commentaryList.innerHTML = '';
       [...allCommentaries].sort().forEach(name => {
+        if (filter && !name.toLowerCase().includes(filter)) return;
         const checked = allowedCommentaries.size === 0 || allowedCommentaries.has(name);
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.checked = checked;
         cb.dataset.name = name;
         cb.addEventListener('change', e => {
+          allowedCommentaries.delete(NONE_SENTINEL);
           if (e.target.checked) allowedCommentaries.add(name);
           else allowedCommentaries.delete(name);
           localStorage.setItem('allowedCommentaries', JSON.stringify([...allowedCommentaries]));
@@ -319,6 +327,22 @@
 
     settingsBtn.addEventListener('click', () => settingsPanel.classList.add('visible'));
     settingsCloseBtn.addEventListener('click', () => settingsPanel.classList.remove('visible'));
+    commentarySearch.addEventListener('input', () => updateCommentaryList());
+    toggleAllBtn.addEventListener('click', () => {
+      const cbs = commentaryList.querySelectorAll('input[type="checkbox"]');
+      const shouldCheck = Array.from(cbs).some(cb => !cb.checked);
+      allowedCommentaries = new Set();
+      if (shouldCheck) {
+        cbs.forEach(cb => {
+          cb.checked = true;
+          allowedCommentaries.add(cb.dataset.name);
+        });
+      } else {
+        allowedCommentaries.add(NONE_SENTINEL);
+        cbs.forEach(cb => cb.checked = false);
+      }
+      localStorage.setItem('allowedCommentaries', JSON.stringify([...allowedCommentaries]));
+    });
 
     themeCheckbox.addEventListener('change', () => {
       document.body.classList.toggle('dark', themeCheckbox.checked);
