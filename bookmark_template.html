@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>סימניית לימוד - {{ title }}</title>
   <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <style>
     :root {
       --bg-color: #f4f6fa;
@@ -195,12 +196,22 @@
       gap: 10px;
     }
     .nav-btn {
-      padding: 6px 12px;
+      width: 40px;
+      height: 40px;
       background: var(--header-bg);
       color: var(--header-text);
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3em;
       cursor: pointer;
+      transition: transform 0.2s, background-color 0.2s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      transform: scale(1.1);
+      background: var(--border-color);
     }
     .nav-btn:disabled {
       opacity: 0.5;
@@ -296,9 +307,9 @@
       </div>
       <div class="modal-footer">
         <div class="nav-arrows">
-          <button id="prev-link" class="nav-btn">&#8592;</button>
+          <button id="prev-link" class="nav-btn"><i class="fa-solid fa-chevron-left"></i></button>
           <span id="link-counter"></span>
-          <button id="next-link" class="nav-btn">&#8594;</button>
+          <button id="next-link" class="nav-btn"><i class="fa-solid fa-chevron-right"></i></button>
         </div>
         <a id="modal-sefaria-link" href="#" target="_blank" class="sefaria-btn">לצפייה באתר ספריא</a>
       </div>
@@ -320,6 +331,16 @@
 
   let currentLinks = [];
   let currentIndex = 0;
+  let origLink = '#';
+
+  function displayCurrentLink() {
+    if (!currentLinks.length) return;
+    navArrows.style.display = currentLinks.length > 1 ? 'flex' : 'none';
+    linkCounter.textContent = `${currentIndex + 1}/${currentLinks.length}`;
+    prevBtn.disabled = currentIndex === 0;
+    nextBtn.disabled = currentIndex === currentLinks.length - 1;
+    loadSefaria(currentLinks[currentIndex], origLink);
+  }
 
     const settingsBtn = document.getElementById('settings-btn');
     const settingsPanel = document.getElementById('settings-panel');
@@ -425,56 +446,68 @@
     return data;
   }
 
-  async function loadSefaria(sefariaUrls, origUrl) {
-    const urls = Array.isArray(sefariaUrls) ? sefariaUrls : [sefariaUrls];
+  async function loadSefaria(sefariaUrl, origUrl) {
     modalTextContainer.style.display = 'none';
     modalCommentaryContainer.style.display = 'none';
     modalLoader.style.display = 'block';
     showModal();
 
-    modalSefariaLink.href = origUrl || urls[0];
-    navArrows.style.display = 'none';
+    modalSefariaLink.href = origUrl || sefariaUrl;
 
     let textHtml = '';
     const names = [];
     const grouped = new Map();
 
-    for (const u of urls) {
-      let data;
-      try {
-        data = await fetchSefariaData(u);
-      } catch {
-        continue;
-      }
-
-      textHtml += `<h3>${data.heRef}</h3><div class="source-text">${data.he.join('<br>')}</div>`;
-
-      (data.commentary || []).forEach(c => {
-        const name = c.collectiveTitle?.he || c.commentator || 'לא ידוע';
-        if (!names.includes(name)) names.push(name);
-        if (allowedCommentaries.size && !allowedCommentaries.has(name)) return;
-
-        const rawText = Array.isArray(c.he) ? c.he.join(' ') : c.he || '';
-        const cleanText = rawText.replace(/<[^>]*>/g, '').trim();
-        if (!cleanText) return;
-
-        const dibur = cleanText.split(/[.:!?]/)[0];
-        const highlighted = `<span class="dibur">${dibur}</span>${cleanText.slice(dibur.length)}`;
-
-        if (!grouped.has(name)) grouped.set(name, []);
-        grouped.get(name).push(highlighted);
-      });
+    let data;
+    try {
+      data = await fetchSefariaData(sefariaUrl);
+    } catch {
+      displayError('שגיאה בטעינת הנתונים');
+      return;
     }
+
+    textHtml += `<h3>${data.heRef}</h3><div class="source-text">${data.he.join('<br>')}</div>`;
+
+    (data.commentary || []).forEach(c => {
+      const name = c.collectiveTitle?.he || c.commentator || 'לא ידוע';
+      if (!names.includes(name)) names.push(name);
+      if (allowedCommentaries.size && !allowedCommentaries.has(name)) return;
+
+      const rawText = Array.isArray(c.he) ? c.he.join(' ') : c.he || '';
+      const cleanText = rawText.replace(/<[^>]*>/g, '').trim();
+      if (!cleanText) return;
+
+      const dibur = cleanText.split(/[.:!?]/)[0];
+      const highlighted = `<span class="dibur">${dibur}</span>${cleanText.slice(dibur.length)}`;
+
+      if (!grouped.has(name)) grouped.set(name, []);
+      grouped.get(name).push(highlighted);
+    });
 
     displayAggregated(textHtml, names, grouped);
   }
 
   modalCloseBtn.addEventListener('click', hideModal);
   modal.addEventListener('click', e => { if (e.target === modal) hideModal(); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') hideModal();
+    if (!modal.classList.contains('visible')) return;
+    if (e.key === 'ArrowLeft') prevBtn.click();
+    if (e.key === 'ArrowRight') nextBtn.click();
+  });
 
-  prevBtn.addEventListener('click', () => {});
-  nextBtn.addEventListener('click', () => {});
+  prevBtn.addEventListener('click', () => {
+    if (currentIndex > 0) {
+      currentIndex--;
+      displayCurrentLink();
+    }
+  });
+  nextBtn.addEventListener('click', () => {
+    if (currentIndex < currentLinks.length - 1) {
+      currentIndex++;
+      displayCurrentLink();
+    }
+  });
 
   document.body.addEventListener('click', async event => {
     const cell = event.target.closest('td.has-link');
@@ -488,7 +521,9 @@
     }
     const orig = cell.dataset.origlink || currentLinks[0] || '#';
     if (currentLinks.length === 0) return;
-    loadSefaria(currentLinks, orig);
+    origLink = orig;
+    currentIndex = 0;
+    displayCurrentLink();
   });
 
     function displayAggregated(textHtml, names, grouped) {
