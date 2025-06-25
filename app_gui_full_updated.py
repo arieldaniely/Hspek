@@ -4,17 +4,19 @@
 import customtkinter as ctk
 from tkinter import ttk, filedialog, messagebox
 import tkinter as tk
-from tkcalendar import DateEntry
+from tkcalendar import Calendar
 from datetime import date, timedelta, datetime
 import math
 import locale
 import os
+from pyluach import dates
 
 # ייבוא פונקציות לוגיות מהמודול הנפרד
 from torah_logic_full_updated import (
     load_data, get_length_from_node, has_relevant_data_recursive,
     calculate_study_days, write_ics_file,
-    write_bookmark_html, is_holiday
+    write_bookmark_html, is_holiday,
+    Gematria, HEBREW_MONTH_NAMES
 )
 
 # ==============================================================================
@@ -32,6 +34,43 @@ ctk.set_appearance_mode("system")  # הגדרת ערכת נושא בהתאם ל�
 ctk.set_default_color_theme("blue") # הגדרת צבע ברירת מחדל
 
 DEFAULT_FILE = "torah_tree_data_full.json" # קובץ נתונים ברירת מחדל
+
+# ==============================================================================
+#                                 מחלקת האפליקציה הראשית
+# ==============================================================================
+class HebrewDateEntry(ctk.CTkFrame):
+    """Entry widget with a Hebrew calendar drop-down."""
+
+    def __init__(self, master=None, textvariable=None, width=150, date_pattern="yyyy-mm-dd", font=("Arial", 14)):
+        super().__init__(master, fg_color="transparent")
+        self.var = textvariable or tk.StringVar()
+        self.date_pattern = date_pattern
+        self.entry = ctk.CTkEntry(self, textvariable=self.var, width=width, font=ctk.CTkFont(size=font[1]))
+        self.entry.pack(side="left", fill="x", expand=True)
+        self.button = ctk.CTkButton(self, text="▼", width=28, command=self._toggle_calendar)
+        self.button.pack(side="left", padx=(2, 0))
+        self._cal_window = None
+
+    def _toggle_calendar(self):
+        if self._cal_window and self._cal_window.winfo_exists():
+            self._cal_window.destroy()
+            self._cal_window = None
+            return
+
+        self._cal_window = tk.Toplevel(self)
+        self._cal_window.transient(self)
+        self._cal_window.grab_set()
+        cal = Calendar(self._cal_window, locale="he_IL", date_pattern=self.date_pattern)
+        cal.pack()
+        cal.bind("<<CalendarSelected>>", lambda e: self._select_date(cal))
+
+    def _select_date(self, cal: Calendar):
+        sel = cal.selection_get()
+        if isinstance(sel, date):
+            self.var.set(sel.strftime("%Y-%m-%d"))
+        self._cal_window.destroy()
+        self._cal_window = None
+
 
 # ==============================================================================
 #                                 מחלקת האפליקציה הראשית
@@ -180,12 +219,11 @@ class TorahTreeApp(ctk.CTk):
         self.start_date_label = ttk.Label(schedule_frame, text="תאריך התחלה:", font=("Arial", 15))
         self.start_date_label.pack(anchor="w", padx=10, pady=(5,0))
 
-        self.start_date_entry = DateEntry(
+        self.start_date_entry = HebrewDateEntry(
             schedule_frame,
             textvariable=self.start_date_var,
-            width=14,
+            width=150,
             date_pattern="yyyy-mm-dd",
-            locale='he_IL',
             font=("Arial", 14)
         )
         self.start_date_entry.pack(fill="x", padx=10, pady=(0,5))
@@ -194,12 +232,11 @@ class TorahTreeApp(ctk.CTk):
         self.end_date_label = ttk.Label(schedule_frame, text="תאריך סיום:", font=("Arial", 15))
         self.end_date_label.pack(anchor="w", padx=10, pady=(5,0))
 
-        self.end_date_entry = DateEntry(
+        self.end_date_entry = HebrewDateEntry(
             schedule_frame,
             textvariable=self.end_date_var,
-            width=14,
+            width=150,
             date_pattern="yyyy-mm-dd",
-            locale='he_IL',
             font=("Arial", 14)
         )
         self.end_date_entry.pack(fill="x", padx=10, pady=(0,5))
@@ -491,12 +528,26 @@ class TorahTreeApp(ctk.CTk):
 
     def parse_date(self, date_str):
         """
-        ממיר מחרוזת תאריך לאובייקט date.
-        מחזיר None אם הפורמט אינו תקין.
+        ממיר מחרוזת תאריך לאובייקט ``date``.
+        תומך בפורמט ISO ("YYYY-MM-DD") או בתאריך עברי בגימטריה,
+        למשל ``"י"ח תשרי תשפ"ד"``.
         """
         try:
             return date.fromisoformat(date_str)
         except ValueError:
+            pass
+
+        try:
+            parts = date_str.strip().split()
+            if len(parts) != 3:
+                return None
+            day_h, month_h, year_h = parts
+            day = Gematria.gematria_to_int(day_h)
+            year = Gematria.gematria_to_int(year_h)
+            month = HEBREW_MONTH_NAMES.index(month_h) + 1
+            hd = dates.HebrewDate(year, month, day)
+            return hd.to_pydate()
+        except Exception:
             return None
 
     # ==================== פונקציות חישוב לוגיות ====================
