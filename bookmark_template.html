@@ -61,6 +61,11 @@
       cursor: pointer;
       font-size: 1.2em;
       z-index: 1001;
+      transition: transform 0.3s;
+    }
+
+    .settings-btn.rotated {
+      transform: rotate(90deg);
     }
 
     .settings-panel {
@@ -394,8 +399,14 @@
       });
     }
 
-    settingsBtn.addEventListener('click', () => settingsPanel.classList.add('visible'));
-    settingsCloseBtn.addEventListener('click', () => settingsPanel.classList.remove('visible'));
+    settingsBtn.addEventListener('click', () => {
+      const visible = settingsPanel.classList.toggle('visible');
+      settingsBtn.classList.toggle('rotated', visible);
+    });
+    settingsCloseBtn.addEventListener('click', () => {
+      settingsPanel.classList.remove('visible');
+      settingsBtn.classList.remove('rotated');
+    });
     commentarySearch.addEventListener('input', () => updateCommentaryList());
     toggleAllBtn.addEventListener('click', () => {
       const cbs = commentaryList.querySelectorAll('input[type="checkbox"]');
