@@ -693,6 +693,13 @@ class TorahTreeApp(ctk.CTk):
         except Exception:
             return None
 
+    def format_date_display(self, gdate: date) -> str:
+        """מחזיר מחרוזת תאריך לתצוגה בהתאם למצב התאריך הנבחר."""
+        if self.date_mode_var.get() == "hebrew":
+            hdate = dates.GregorianDate(gdate.year, gdate.month, gdate.day).to_heb()
+            return hdate.hebrew_date_string(True)
+        return gdate.strftime('%d/%m/%Y')
+
     # ==================== פונקציות חישוב לוגיות ====================
     def _calculate_projected_end_date(self, start_date_obj, total_material, units_per_day_val, no_study_weekdays_set, skip_holidays=False):
         """
@@ -796,15 +803,17 @@ class TorahTreeApp(ctk.CTk):
                 return
 
             if total_content == 0: # אם אין חומר ללמוד, תאריך הסיום הוא תאריך ההתחלה
-                self.daily_progress_label.configure(text=f"תאריך סיום: {start_d.strftime('%d/%m/%Y')} (אין חומר ללמוד)")
+                end_display = self.format_date_display(start_d)
+                self.daily_progress_label.configure(text=f"תאריך סיום: {end_display} (אין חומר ללמוד)")
                 return
 
             projected_end_date = self._calculate_projected_end_date(start_d, total_content, units_val, no_study_weekdays, self.skip_holidays_var.get())
 
             if projected_end_date:
                 duration_days = (projected_end_date - start_d).days + 1 # כולל יום ההתחלה והסיום
+                end_display = self.format_date_display(projected_end_date)
                 # הצגת תאריך הסיום המשוער ומשך הלימוד הכולל בימים
-                self.daily_progress_label.configure(text=f"תאריך סיום משוער: {projected_end_date.strftime('%d/%m/%Y')}\n({duration_days} ימים)")
+                self.daily_progress_label.configure(text=f"תאריך סיום משוער: {end_display}\n({duration_days} ימים)")
             else:
                 # יכול לקרות אם אין ימי לימוד אפשריים או שהחישוב נכשל (למשל, הספק נמוך מאוד וחומר רב)
                 self.daily_progress_label.configure(text="תאריך סיום: (לא ניתן לחשב / אין ימי לימוד)")
