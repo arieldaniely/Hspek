@@ -114,19 +114,31 @@ class TorahTreeApp(ctk.CTk):
         # מסגרת עץ התצוגה (Tree Frame)
         tree_frame = ctk.CTkFrame(main_frame, fg_color="#e6f0fa", corner_radius=15)
         tree_frame.grid(row=0, column=0, sticky="nsew", padx=(0,18), pady=3)
-        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_rowconfigure(1, weight=1)
         tree_frame.grid_columnconfigure(0, weight=1)
+
+        # שדה חיפוש לעץ עם אייקון וזיהוי הקלדה
+        self.search_var = ctk.StringVar()
+        search_frame = ctk.CTkFrame(tree_frame, fg_color="transparent")
+        search_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=6, pady=(6, 0))
+        search_frame.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(search_frame, text="🔍", width=20).grid(row=0, column=0, pady=0, padx=(0,4))
+        self.search_entry = ctk.CTkEntry(search_frame, textvariable=self.search_var,
+                                         placeholder_text="חיפוש...")
+        self.search_entry.grid(row=0, column=1, sticky="ew")
+        self.search_entry.bind("<KeyRelease>", self.filter_tree)
 
         style = ttk.Style(self)
         style.configure("Treeview", font=("Arial", 18), rowheight=30) # הגדלת הפונט והרווח בין השורות
         # יצירת רכיב עץ התצוגה
 
         self.tree = ttk.Treeview(tree_frame, selectmode="extended", show="tree", height=20) # הגדלת גובה ברירת מחדל
-        self.tree.grid(row=0, column=0, sticky="nsew", padx=(4,0), pady=6)
+        self.tree.grid(row=1, column=0, sticky="nsew", padx=(4,0), pady=6)
         scroll_y = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
-        scroll_y.grid(row=0, column=1, sticky="ns")
+        scroll_y.grid(row=1, column=1, sticky="ns")
         scroll_x = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
-        scroll_x.grid(row=1, column=0, sticky="ew")
+        scroll_x.grid(row=2, column=0, sticky="ew")
         self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
 
         # לוח בקרה (Control Panel) - מימין לעץ
@@ -363,6 +375,43 @@ class TorahTreeApp(ctk.CTk):
             self.node_map[iid] = val # שמירת הנתונים המקוריים של הצומת
             if isinstance(val, dict):
                 self._build_full_tree_recursive(iid, val)
+
+    def _node_matches_query(self, node_data, query):
+        """בודק אם צומת כלשהו בעץ מכיל את מחרוזת החיפוש."""
+        if not isinstance(node_data, dict):
+            return False
+        for k, v in node_data.items():
+            if k in ["אורך בדפים", "עמוד אחרון", "משניות", "פרקים"] and not isinstance(v, dict):
+                continue
+            if query in k:
+                return True
+            if isinstance(v, dict) and self._node_matches_query(v, query):
+                return True
+        return False
+
+    def _build_filtered_tree_recursive(self, parent_iid, node_data, query):
+        """בונה את העץ בהתאם למחרוזת חיפוש."""
+        if not isinstance(node_data, dict):
+            return
+        for key, val in node_data.items():
+            if key in ["אורך בדפים", "עמוד אחרון", "משניות", "פרקים"] and not isinstance(val, dict):
+                continue
+            if query in key or self._node_matches_query(val, query):
+                iid = self.tree.insert(parent_iid, "end", text=key, open=True)
+                self.node_map[iid] = val
+                if isinstance(val, dict):
+                    self._build_filtered_tree_recursive(iid, val, query)
+
+    def filter_tree(self, event=None):
+        """סינון פריטי העץ בהתאם לטקסט החיפוש."""
+        query = self.search_var.get().strip()
+        self.tree.delete(*self.tree.get_children())
+        self.node_map.clear()
+        if not query:
+            self._build_full_tree_recursive("", self.data)
+        else:
+            self._build_filtered_tree_recursive("", self.data, query)
+        self.update_sum_and_daily_progress()
 
     def disable_all_radio_buttons(self):
         """
