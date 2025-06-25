@@ -41,10 +41,11 @@ DEFAULT_FILE = "torah_tree_data_full.json" # קובץ נתונים ברירת מ
 class HebrewDateSelector(ctk.CTkFrame):
     """Widget for selecting a Hebrew date using three drop-down menus."""
 
-    def __init__(self, master=None, textvariable=None, font=("Arial", 14)):
+    def __init__(self, master=None, textvariable=None, font=("Arial", 14), dropdown_font=None):
         super().__init__(master, fg_color="transparent")
         self.var = textvariable or tk.StringVar()
         self.font = font
+        self.dropdown_font = dropdown_font or (font[0], font[1] + 4)
 
         # Determine initial Hebrew date from the variable or today
         gdate = None
@@ -69,6 +70,10 @@ class HebrewDateSelector(ctk.CTkFrame):
         self.month_box.pack(side="left", padx=(0, 4))
         self.day_box = ttk.Combobox(self, textvariable=self.day_var, state="readonly", width=5, font=font)
         self.day_box.pack(side="left")
+
+        dropdown_font_str = f"{self.dropdown_font[0]} {self.dropdown_font[1]}"
+        for box in (self.year_box, self.month_box, self.day_box):
+            box.option_add("*TCombobox*Listbox.font", dropdown_font_str)
 
         self.year_var.trace_add("write", lambda *a: self._on_year_or_month_change())
         self.month_var.trace_add("write", lambda *a: self._on_year_or_month_change())
@@ -386,9 +391,19 @@ class TorahTreeApp(ctk.CTk):
             self.end_date_entry.destroy()
 
         if self.date_mode_var.get() == "hebrew":
-            big_font = ("Arial", 18)
-            self.start_date_entry = HebrewDateSelector(self.schedule_frame, textvariable=self.start_date_var, font=big_font)
-            self.end_date_entry = HebrewDateSelector(self.schedule_frame, textvariable=self.end_date_var, font=big_font)
+            dropdown_font = ("Arial", 18)
+            self.start_date_entry = HebrewDateSelector(
+                self.schedule_frame,
+                textvariable=self.start_date_var,
+                font=("Arial", 14),
+                dropdown_font=dropdown_font,
+            )
+            self.end_date_entry = HebrewDateSelector(
+                self.schedule_frame,
+                textvariable=self.end_date_var,
+                font=("Arial", 14),
+                dropdown_font=dropdown_font,
+            )
         else:
             self.start_date_entry = DateEntry(
                 self.schedule_frame,
