@@ -11,7 +11,7 @@ from collections import defaultdict
 
 # כתובת ברירת מחדל לפתיחת חומר הלימוד היומי
 # {ref} מוחלף בהפניה המדויקת בספריא (לדוגמה "בראשית.א-ב")
-DEFAULT_LESSON_LINK = "https://www.sefaria.org.il/he/{ref}"
+DEFAULT_LESSON_LINK = "https://www.sefaria.org.il/{ref}"
 
 # ==================== עזרות גימטריה ====================
 class Gematria:
@@ -603,8 +603,8 @@ def generate_smart_filename(titles_list, mode, start_date, end_date, tree_data, 
             time_str = "בחודש"
         elif 58 < days < 63: # טווח של חודשיים בערך
             time_str = "בחודשיים"
-        elif (days % 30) < 2 or (days % 30) > 28: # טווח של חודשים שלמים בערך
-            time_str = "ב{days // 30} חודשים"
+        elif (days % 30) <= 3 or (days % 30) >= 27: # טווח של חודשים שלמים בערך
+            time_str = f"ב{days // 30} חודשים"
         elif days % 7 == 0: # אם מתחלק בדיוק בשבועות
             weeks = days // 7
             if weeks == 2:
