@@ -41,10 +41,11 @@ DEFAULT_FILE = "torah_tree_data_full.json" # קובץ נתונים ברירת מ
 class HebrewDateSelector(ctk.CTkFrame):
     """Widget for selecting a Hebrew date using three drop-down menus."""
 
-    def __init__(self, master=None, textvariable=None, font=("Arial", 14)):
+    def __init__(self, master=None, textvariable=None, font=("Arial", 14), dropdown_font=None):
         super().__init__(master, fg_color="transparent")
         self.var = textvariable or tk.StringVar()
         self.font = font
+        self.dropdown_font = dropdown_font or (font[0], font[1] + 4)
 
         # Determine initial Hebrew date from the variable or today
         gdate = None
@@ -59,16 +60,20 @@ class HebrewDateSelector(ctk.CTkFrame):
             hdate = dates.GregorianDate.today().to_heb()
             self.var.set(hdate.to_pydate().strftime("%Y-%m-%d"))
 
-        self.year_var = tk.IntVar(value=hdate.year)
+        self.year_var = tk.StringVar(value=Gematria.format_hebrew_number(hdate.year, punctuation=False))
         self.month_var = tk.StringVar()
-        self.day_var = tk.IntVar(value=hdate.day)
+        self.day_var = tk.StringVar(value=Gematria.format_hebrew_number(hdate.day, punctuation=False))
 
-        self.year_box = ttk.Combobox(self, textvariable=self.year_var, width=6, font=font)
+        self.year_box = ttk.Combobox(self, textvariable=self.year_var, width=7, font=font)
         self.year_box.pack(side="left", padx=(0, 4))
         self.month_box = ttk.Combobox(self, textvariable=self.month_var, state="readonly", font=font, width=8)
         self.month_box.pack(side="left", padx=(0, 4))
-        self.day_box = ttk.Combobox(self, textvariable=self.day_var, state="readonly", width=4, font=font)
+        self.day_box = ttk.Combobox(self, textvariable=self.day_var, state="readonly", width=5, font=font)
         self.day_box.pack(side="left")
+
+        dropdown_font_str = f"{self.dropdown_font[0]} {self.dropdown_font[1]}"
+        for box in (self.year_box, self.month_box, self.day_box):
+            box.option_add("*TCombobox*Listbox.font", dropdown_font_str)
 
         self.year_var.trace_add("write", lambda *a: self._on_year_or_month_change())
         self.month_var.trace_add("write", lambda *a: self._on_year_or_month_change())
@@ -81,21 +86,47 @@ class HebrewDateSelector(ctk.CTkFrame):
         self._update_day_options()
         self._update_var()
 
+    def _parse_year(self, year_str):
+        try:
+            return self._year_map.get(year_str, Gematria.gematria_to_int(year_str))
+        except Exception:
+            try:
+                return int(year_str)
+            except Exception:
+                return None
+
+    def _parse_day(self, day_str):
+        try:
+            return Gematria.gematria_to_int(day_str)
+        except Exception:
+            try:
+                return int(day_str)
+            except Exception:
+                return None
+
     def _populate_years(self, center_year: int):
-        years = list(range(center_year - 5, center_year + 6))
-        self.year_box["values"] = years
+        start = center_year - 50
+        end = center_year + 51
+        years = list(range(start, end))
+        self._year_map = {Gematria.format_hebrew_number(y, punctuation=False): y for y in years}
+        self.year_box["values"] = list(self._year_map.keys())
 
     def _month_name(self, year: int, month: int) -> str:
         return hebrewcal.Month(year, month).month_name(True)
 
     def _on_year_or_month_change(self, *args):
+        year_int = self._parse_year(self.year_var.get())
+        if year_int is not None:
+            self._populate_years(year_int)
         self._update_month_options()
         self._update_day_options()
         self._update_var()
 
     def _update_month_options(self):
         try:
-            year = int(self.year_var.get())
+            year = self._parse_year(self.year_var.get())
+            if year is None:
+                return
         except Exception:
             return
         months = list(hebrewcal.Year(year).itermonths())
@@ -107,23 +138,24 @@ class HebrewDateSelector(ctk.CTkFrame):
 
     def _update_day_options(self):
         try:
-            year = int(self.year_var.get())
+            year = self._parse_year(self.year_var.get())
             month_num = self._month_map.get(self.month_var.get())
-            if month_num is None:
+            if month_num is None or year is None:
                 return
         except Exception:
             return
         days_count = len(hebrewcal.Month(year, month_num))
-        self.day_box["values"] = list(range(1, days_count + 1))
-        if not (1 <= self.day_var.get() <= days_count):
-            self.day_var.set(1)
+        self.day_box["values"] = [Gematria.format_hebrew_number(i, punctuation=False) for i in range(1, days_count + 1)]
+        current_day = self._parse_day(self.day_var.get())
+        if not (1 <= (current_day or 0) <= days_count):
+            self.day_var.set(Gematria.format_hebrew_number(1, punctuation=False))
 
     def _update_var(self):
         try:
-            year = int(self.year_var.get())
+            year = self._parse_year(self.year_var.get())
             month_num = self._month_map.get(self.month_var.get())
-            day = int(self.day_var.get())
-            if month_num is None:
+            day = self._parse_day(self.day_var.get())
+            if month_num is None or year is None or day is None:
                 return
             gdate = dates.HebrewDate(year, month_num, day).to_pydate()
             self.var.set(gdate.strftime("%Y-%m-%d"))
@@ -359,8 +391,19 @@ class TorahTreeApp(ctk.CTk):
             self.end_date_entry.destroy()
 
         if self.date_mode_var.get() == "hebrew":
-            self.start_date_entry = HebrewDateSelector(self.schedule_frame, textvariable=self.start_date_var, font=("Arial", 14))
-            self.end_date_entry = HebrewDateSelector(self.schedule_frame, textvariable=self.end_date_var, font=("Arial", 14))
+            dropdown_font = ("Arial", 18)
+            self.start_date_entry = HebrewDateSelector(
+                self.schedule_frame,
+                textvariable=self.start_date_var,
+                font=("Arial", 14),
+                dropdown_font=dropdown_font,
+            )
+            self.end_date_entry = HebrewDateSelector(
+                self.schedule_frame,
+                textvariable=self.end_date_var,
+                font=("Arial", 14),
+                dropdown_font=dropdown_font,
+            )
         else:
             self.start_date_entry = DateEntry(
                 self.schedule_frame,
