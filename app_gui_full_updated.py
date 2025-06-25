@@ -117,10 +117,16 @@ class TorahTreeApp(ctk.CTk):
         tree_frame.grid_rowconfigure(1, weight=1)
         tree_frame.grid_columnconfigure(0, weight=1)
 
-        # שדה חיפוש לעץ
+        # שדה חיפוש לעץ עם אייקון וזיהוי הקלדה
         self.search_var = ctk.StringVar()
-        self.search_entry = ctk.CTkEntry(tree_frame, textvariable=self.search_var)
-        self.search_entry.grid(row=0, column=0, columnspan=2, sticky="ew", padx=6, pady=(6, 0))
+        search_frame = ctk.CTkFrame(tree_frame, fg_color="transparent")
+        search_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=6, pady=(6, 0))
+        search_frame.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(search_frame, text="🔍", width=20).grid(row=0, column=0, pady=0, padx=(0,4))
+        self.search_entry = ctk.CTkEntry(search_frame, textvariable=self.search_var,
+                                         placeholder_text="חיפוש...")
+        self.search_entry.grid(row=0, column=1, sticky="ew")
         self.search_entry.bind("<KeyRelease>", self.filter_tree)
 
         style = ttk.Style(self)
