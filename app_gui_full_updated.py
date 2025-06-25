@@ -286,9 +286,6 @@ class TorahTreeApp(ctk.CTk):
         self.end_date_label.pack(anchor="w", padx=10, pady=(5,0))
         self.end_date_entry = None
 
-        # יצירת שדות תאריך בהתאם להגדרות
-        self._build_date_widgets()
-
         # הספק יומי (יופיע רק במצב הספק יומי)
         self.units_per_day_label = ttk.Label(schedule_frame, text="הספק יומי (יחידות):", font=("Arial", 15))
         self.units_per_day_label.pack(anchor="w", padx=10, pady=(5,0))
@@ -300,6 +297,9 @@ class TorahTreeApp(ctk.CTk):
             font=ctk.CTkFont(size=14)
         )
         self.units_per_day_entry.pack(fill="x", padx=10, pady=(0,5))
+
+        # יצירת שדות תאריך בהתאם להגדרות כעת שהווידג'טים הנדרשים קיימים
+        self._build_date_widgets()
 
         # מסגרת לבחירת ימי חופשה שבועיים
         no_study_frame = ctk.CTkFrame(ctrl_frame, fg_color="#d9e9f6", corner_radius=12)
