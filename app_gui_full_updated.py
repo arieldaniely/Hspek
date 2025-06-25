@@ -197,7 +197,7 @@ class TorahTreeApp(ctk.CTk):
         # האם לעגל חצאים במספר הדפים כלפי מעלה
         self.round_up_halves_var = ctk.BooleanVar(value=False)
         # סוג הזנת תאריך: 'gregorian' או 'hebrew'
-        self.date_mode_var = ctk.StringVar(value="gregorian")
+        self.date_mode_var = ctk.StringVar(value="hebrew")
         self.settings_window = None
 
         days_of_week = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"]
@@ -391,7 +391,7 @@ class TorahTreeApp(ctk.CTk):
             self.end_date_entry.destroy()
 
         if self.date_mode_var.get() == "hebrew":
-            dropdown_font = ("Arial", 18)
+            dropdown_font = ("Arial", 14)
             self.start_date_entry = HebrewDateSelector(
                 self.schedule_frame,
                 textvariable=self.start_date_var,
