@@ -252,6 +252,7 @@
     <button class="settings-close-btn">&times;</button>
     <h3>הגדרות</h3>
     <label><input type="checkbox" id="theme-checkbox"> מצב כהה</label>
+    <label><input type="checkbox" id="continuous-checkbox"> תצוגה רציפה</label>
     <div id="commentary-settings">
       <h4>פרשנים</h4>
       <input id="commentary-search" type="text" placeholder="חפש פרשן" style="width: 100%; margin-bottom: 8px;" />
@@ -339,20 +340,31 @@
 
   function displayCurrentLink() {
     if (!currentLinks.length) return;
-    navArrows.style.display = currentLinks.length > 1 ? 'flex' : 'none';
-    linkCounter.textContent = `${currentIndex + 1}/${currentLinks.length}`;
-    prevBtn.disabled = currentIndex === 0;
-    nextBtn.disabled = currentIndex === currentLinks.length - 1;
-    loadSefaria(currentLinks[currentIndex], origLink);
+    if (continuousDisplay) {
+      navArrows.style.display = 'none';
+      linkCounter.textContent = '';
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      loadAllLinks(currentLinks);
+    } else {
+      navArrows.style.display = currentLinks.length > 1 ? 'flex' : 'none';
+      linkCounter.textContent = `${currentIndex + 1}/${currentLinks.length}`;
+      prevBtn.disabled = currentIndex === 0;
+      nextBtn.disabled = currentIndex === currentLinks.length - 1;
+      loadSefaria(currentLinks[currentIndex], origLink);
+    }
   }
 
     const settingsBtn = document.getElementById('settings-btn');
     const settingsPanel = document.getElementById('settings-panel');
     const settingsCloseBtn = settingsPanel.querySelector('.settings-close-btn');
     const themeCheckbox = document.getElementById('theme-checkbox');
+    const continuousCheckbox = document.getElementById('continuous-checkbox');
     const commentaryList = document.getElementById('commentary-list');
     const commentarySearch = document.getElementById('commentary-search');
     const toggleAllBtn = document.getElementById('toggle-all-commentaries');
+    let continuousDisplay = localStorage.getItem('continuousDisplay') === '1';
+    if (continuousDisplay) continuousCheckbox.checked = true;
 
     const NONE_SENTINEL = '__NONE__';
     let allowedCommentaries = new Set(JSON.parse(localStorage.getItem('allowedCommentaries') || '[]'));
@@ -406,10 +418,16 @@
       localStorage.setItem('darkMode', themeCheckbox.checked ? '1' : '0');
     });
 
+    continuousCheckbox.addEventListener('change', () => {
+      continuousDisplay = continuousCheckbox.checked;
+      localStorage.setItem('continuousDisplay', continuousDisplay ? '1' : '0');
+    });
+
     if (localStorage.getItem('darkMode') === '1') {
       themeCheckbox.checked = true;
       document.body.classList.add('dark');
     }
+
 
     function showModal() {
       modal.classList.add('visible');
@@ -489,6 +507,49 @@
     });
 
     displayAggregated(textHtml, names, grouped);
+  }
+
+  async function loadAllLinks(links) {
+    modalTextContainer.style.display = 'none';
+    modalCommentaryContainer.style.display = 'none';
+    modalLoader.style.display = 'block';
+    showModal();
+
+    modalSefariaLink.href = origLink || links[0] || '#';
+
+    let combinedHtml = '';
+    const names = [];
+    const grouped = new Map();
+
+    for (const l of links) {
+      let data;
+      try {
+        data = await fetchSefariaData(l);
+      } catch {
+        displayError('שגיאה בטעינת הנתונים');
+        return;
+      }
+
+      combinedHtml += `<h3>${data.heRef}</h3><div class="source-text">${data.he.join('<br>')}</div>`;
+
+      (data.commentary || []).forEach(c => {
+        const name = c.collectiveTitle?.he || c.commentator || 'לא ידוע';
+        if (!names.includes(name)) names.push(name);
+        if (allowedCommentaries.size && !allowedCommentaries.has(name)) return;
+
+        const rawText = Array.isArray(c.he) ? c.he.join(' ') : c.he || '';
+        const cleanText = rawText.replace(/<[^>]*>/g, '').trim();
+        if (!cleanText) return;
+
+        const dibur = cleanText.split(/[.:!?]/)[0];
+        const highlighted = `<span class="dibur">${dibur}</span>${cleanText.slice(dibur.length)}`;
+
+        if (!grouped.has(name)) grouped.set(name, []);
+        grouped.get(name).push(highlighted);
+      });
+    }
+
+    displayAggregated(combinedHtml, names, grouped);
   }
 
   modalCloseBtn.addEventListener('click', hideModal);
