@@ -9,6 +9,7 @@ from datetime import date, timedelta, datetime
 import math
 import locale
 import os
+import webbrowser
 from pyluach import dates, hebrewcal
 
 # ייבוא פונקציות לוגיות מהמודול הנפרד
@@ -1007,7 +1008,7 @@ class TorahTreeApp(ctk.CTk):
                 skip_holidays=self.skip_holidays_var.get()
             )
             messagebox.showinfo("הצלחה", f"הקובץ HTML נשמר:\n{saved_path}")
-            os.startfile(saved_path) # פתיחת הקובץ בדפדפן ברירת המחדל
+            webbrowser.open(saved_path)  # פתיחת הקובץ בדפדפן ברירת המחדל
         except Exception as e:
             messagebox.showerror("שגיאה", str(e))
 
