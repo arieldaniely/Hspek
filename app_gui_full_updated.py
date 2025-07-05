@@ -283,7 +283,14 @@ class TorahTreeApp(ctk.CTk):
         ctk.CTkLabel(mode_group, text="לפי סכם", font=ctk.CTkFont(weight="bold")).pack(anchor="ne", padx=8, pady=(4, 0))
         mode_group.grid(row=0, column=0, sticky="ew", pady=7, padx=12)
         for opt in ("פרקים", "משניות", "דפים", "עמודים"):
-            rb = ctk.CTkRadioButton(mode_group, text=opt, variable=self.mode, value=opt, command=self.update_sum_and_daily_progress)
+            rb = ctk.CTkRadioButton(
+                mode_group,
+                text=opt,
+                variable=self.mode,
+                value=opt,
+                command=self.update_sum_and_daily_progress,
+                text_color="black",  # keep contrast also in dark mode
+            )
             rb.pack(anchor="w", pady=(3,3), padx=10)
             self.radio_buttons[opt] = rb
 
@@ -300,8 +307,22 @@ class TorahTreeApp(ctk.CTk):
         schedule_frame.grid(row=3, column=0, sticky="ew", padx=12, pady=(0,8))
 
         # רדיו - מצב לוח
-        ctk.CTkRadioButton(schedule_frame, text="סיום עד תאריך", variable=self.schedule_mode_var, value=0, command=self.toggle_schedule_mode).pack(anchor="w", pady=(3,3), padx=10)
-        ctk.CTkRadioButton(schedule_frame, text="הספק יומי קבוע", variable=self.schedule_mode_var, value=1, command=self.toggle_schedule_mode).pack(anchor="w", pady=(3,3), padx=10)
+        ctk.CTkRadioButton(
+            schedule_frame,
+            text="סיום עד תאריך",
+            variable=self.schedule_mode_var,
+            value=0,
+            command=self.toggle_schedule_mode,
+            text_color="black",
+        ).pack(anchor="w", pady=(3,3), padx=10)
+        ctk.CTkRadioButton(
+            schedule_frame,
+            text="הספק יומי קבוע",
+            variable=self.schedule_mode_var,
+            value=1,
+            command=self.toggle_schedule_mode,
+            text_color="black",
+        ).pack(anchor="w", pady=(3,3), padx=10)
 
         # מעקב אחר שינויים בשדות התאריכים לחישוב אוטומטי של ההספק
         self.start_date_var.trace_add("write", lambda *args: self.calculate_and_display_daily_progress())
@@ -338,7 +359,13 @@ class TorahTreeApp(ctk.CTk):
         ctk.CTkLabel(no_study_frame, text="חופשה ימי", font=ctk.CTkFont(size=13, weight="bold"), anchor="e", justify="right").grid(row=0, column=0, columnspan=4, sticky="e", padx=12, pady=(4, 0))
         days = list(self.no_study_days.keys())
         for i, day in enumerate(days):
-            cb = ctk.CTkCheckBox(no_study_frame, text=day, variable=self.no_study_days[day], command=self.calculate_and_display_daily_progress)
+            cb = ctk.CTkCheckBox(
+                no_study_frame,
+                text=day,
+                variable=self.no_study_days[day],
+                command=self.calculate_and_display_daily_progress,
+                text_color="black",
+            )
             cb.grid(row=(i // 4) + 1, column=i % 4, sticky="w", padx=5, pady=(2,3))
         no_study_frame.grid(row=4, column=0, sticky="ew", padx=12, pady=(0, 7))
 
