@@ -604,7 +604,7 @@ def generate_smart_filename(titles_list, mode, start_date, end_date, tree_data, 
         elif 58 < days < 63: # טווח של חודשיים בערך
             time_str = "בחודשיים"
         elif (days % 30) < 2 or (days % 30) > 28: # טווח של חודשים שלמים בערך
-            time_str = "ב{days // 30} חודשים"
+            time_str = f"ב{days // 30} חודשים"
         elif days % 7 == 0: # אם מתחלק בדיוק בשבועות
             weeks = days // 7
             if weeks == 2:
