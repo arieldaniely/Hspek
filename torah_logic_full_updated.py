@@ -596,8 +596,8 @@ def generate_smart_filename(titles_list, mode, start_date, end_date, tree_data, 
     else:
         # אחרת, נחשב את משך הזמן על פי תאריכי ההתחלה והסיום
         days = (end_date - start_date).days + 1
-        if (days % 30) < 2 or (days % 30) > 28: # טווח של חודש שלם בערך
-            months = days // 30
+        if (days % 30) < max(5, 2+((days+2) % 30))  or (days % 30) > min(25, 28-((days+2) % 30)): # טווח של חודש שלם בערך
+            months = (days+6) // 30
             if months % 12 == 0: # אם מתחלק בדיוק בשנים
                 years = months // 12
                 if years == 1:
