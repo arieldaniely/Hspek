@@ -591,30 +591,42 @@ def generate_smart_filename(titles_list, mode, start_date, end_date, tree_data, 
 
     # יצירת מחרוזת המתארת את משך הזמן או ההספק
     if units_per_day:
-        # אם הוגדר הספק יומי, נשתמש בו
-        time_str = f"{units_per_day} {mode} ליום"
+        # אם הוגדר הספק יומי, נשתמש בו. במידה וההספק הוא יחידה בודדת נשתמש
+        # בצורת היחיד המתאימה לשם היחידה.
+        if units_per_day == 1:
+            singular_map = {
+                "פרקים": "פרק",
+                "משניות": "משנה",
+                "דפים": "דף",
+                "עמודים": "עמוד",
+            }
+            unit_name = singular_map.get(mode, mode.rstrip("ים"))
+            time_str = f"{unit_name} ליום"
+        else:
+            time_str = f"{units_per_day} {mode} ליום"
     else:
         # אחרת, נחשב את משך הזמן על פי תאריכי ההתחלה והסיום
         days = (end_date - start_date).days + 1
-        if (days % 30) < max(5, 2+((days+2) % 30))  or (days % 30) > min(25, 28-((days+2) % 30)): # טווח של חודש שלם בערך
-            months = (days+6) // 30
-            if months % 12 == 0: # אם מתחלק בדיוק בשנים
-                years = months // 12
-                if years == 1:
+
+        # בדיקה למספר חודשי לימוד שלם
+        approx_months = round(days / 30)
+        if approx_months >= 1 and abs(days - approx_months * 30) <= 5:
+            if approx_months > 0 and approx_months % 12 == 0:
+                approx_years = round(approx_months / 12)
+                if approx_years == 1:
                     time_str = "בשנה"
-                elif years == 2:
+                elif approx_years == 2:
                     time_str = "בשנתיים"
                 else:
-                    # אם יותר משנתיים, נשתמש במספר שנים
-                    time_str = f"ב-{years}-שנים"
+                    time_str = f"ב-{approx_years} שנים"
+            elif approx_months == 1:
+                time_str = "בחודש"
+            elif approx_months == 2:
+                time_str = "בחודשיים"
             else:
-                if months == 1:
-                    time_str = "בחודש"
-                elif months == 2:
-                    time_str = "בחודשיים"
-                else:
-                    time_str = f"ב-{months} חודשים"
-        elif days % 7 == 0: # אם מתחלק בדיוק בשבועות
+                time_str = f"ב-{approx_months} חודשים"
+        elif days % 7 == 0:
+            # אם הטווח מתחלק במדויק לשבועות
             weeks = days // 7
             if weeks == 2:
                 time_str = "בשבועיים"
