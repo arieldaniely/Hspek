@@ -880,16 +880,20 @@ class TorahTreeApp(ctk.CTk):
         }
 
         # בדיקות נוספות בהתאם למצב הלוח
-        # אם במצב "סיום עד תאריך", ודא שיש ימי לימוד
         if self.schedule_mode_var.get() == 0:
+            # במצב "סיום עד תאריך" – ודא שיש ימי לימוד ושמספר היחידות מספיק
             study_days_count = calculate_study_days(start_date, end_date, no_study_weekdays_set, self.skip_holidays_var.get())
             if study_days_count == 0:
                 messagebox.showwarning("אין ימי לימוד", "אין ימי לימוד זמינים בתקופה שנבחרה.")
                 return
-        # אם במצב "הספק יומי", ודא שההספק חיובי
+            # אם הממוצע היומי קטן מיחידה אחת – אין טעם ליצור לוח
+            if study_days_count > 0 and (self.current_total_content / study_days_count) < 1:
+                messagebox.showwarning("הספק לא תקין", "הממוצע היומי חייב להיות לפחות יחידת לימוד אחת.")
+                return
         elif self.schedule_mode_var.get() == 1 and self.units_per_day_var.get() <= 0:
-             messagebox.showwarning("הספק לא תקין", "ההספק היומי חייב להיות גדול מאפס.")
-             return
+            # במצב "הספק יומי" – ההספק חייב להיות חיובי
+            messagebox.showwarning("הספק לא תקין", "ההספק היומי חייב להיות גדול מאפס.")
+            return
 
 
         # בניית רשימת הנתיבים המלאים של הפריטים שנבחרו
@@ -967,16 +971,18 @@ class TorahTreeApp(ctk.CTk):
         }
         
         # בדיקות נוספות בהתאם למצב הלוח
-        # אם במצב "סיום עד תאריך", ודא שיש ימי לימוד
         if self.schedule_mode_var.get() == 0:
+            # במצב "סיום עד תאריך" – ודא שיש ימי לימוד ושמספר היחידות מספיק
             study_days_count = calculate_study_days(start_date, end_date, no_study_weekdays_set, self.skip_holidays_var.get())
             if study_days_count == 0:
                 messagebox.showwarning("אין ימי לימוד", "אין ימי לימוד זמינים בתקופה שנבחרה.")
                 return
-        # אם במצב "הספק יומי", ודא שההספק חיובי
+            if study_days_count > 0 and (self.current_total_content / study_days_count) < 1:
+                messagebox.showwarning("הספק לא תקין", "הממוצע היומי חייב להיות לפחות יחידת לימוד אחת.")
+                return
         elif self.schedule_mode_var.get() == 1 and self.units_per_day_var.get() <= 0:
-             messagebox.showwarning("הספק לא תקין", "ההספק היומי חייב להיות גדול מאפס.")
-             return
+            messagebox.showwarning("הספק לא תקין", "ההספק היומי חייב להיות גדול מאפס.")
+            return
 
         # בניית רשימת הנתיבים המלאים של הפריטים שנבחרו
         selected_items = self.tree.selection()
