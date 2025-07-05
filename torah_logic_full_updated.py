@@ -596,15 +596,24 @@ def generate_smart_filename(titles_list, mode, start_date, end_date, tree_data, 
     else:
         # אחרת, נחשב את משך הזמן על פי תאריכי ההתחלה והסיום
         days = (end_date - start_date).days + 1
-        if days > 360:
-            years = round(days / 365)
-            time_str = "בשנה" if years == 1 else f"ב-{years}-שנים"
-        elif 28 < days < 33: # טווח של חודש בערך
-            time_str = "בחודש"
-        elif 58 < days < 63: # טווח של חודשיים בערך
-            time_str = "בחודשיים"
-        elif (days % 30) < 2 or (days % 30) > 28: # טווח של חודשים שלמים בערך
-            time_str = f"ב{days // 30} חודשים"
+        if (days % 30) < 2 or (days % 30) > 28: # טווח של חודש שלם בערך
+            months = days // 30
+            if months % 12 == 0: # אם מתחלק בדיוק בשנים
+                years = months // 12
+                if years == 1:
+                    time_str = "בשנה"
+                elif years == 2:
+                    time_str = "בשנתיים"
+                else:
+                    # אם יותר משנתיים, נשתמש במספר שנים
+                    time_str = f"ב-{years}-שנים"
+            else:
+                if months == 1:
+                    time_str = "בחודש"
+                elif months == 2:
+                    time_str = "בחודשיים"
+                else:
+                    time_str = f"ב-{months} חודשים"
         elif days % 7 == 0: # אם מתחלק בדיוק בשבועות
             weeks = days // 7
             if weeks == 2:
