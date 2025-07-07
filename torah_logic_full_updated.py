@@ -646,7 +646,8 @@ def _generate_study_schedule(
         tree_data,
         no_study_weekdays,
         units_per_day=None,
-        skip_holidays=False
+        skip_holidays=False,
+        balance_chapters_by_mishnayot=False
     ):
     """
     מייצר את לוח הלימודים המפורט יום אחר יום.
@@ -661,6 +662,8 @@ def _generate_study_schedule(
         units_per_day (int, optional): מספר יחידות לימוד ביום (במצב הספק קבוע).
                                        אם None, הלימוד מחולק על פני טווח התאריכים.
         skip_holidays (bool, optional): האם לדלג על חגים בלוח הלימוד.
+        balance_chapters_by_mishnayot (bool, optional):
+            איזון פרקי משניות לפי מספר המשניות בכל פרק.
     Returns:
         list[dict]: רשימת אירועי לימוד. כל פריט מכיל:
             - ``date``: התאריך הגרגוריאני.
@@ -733,16 +736,34 @@ def _generate_study_schedule(
         study_days_count = calculate_study_days(start_date, end_date, no_study_weekdays, skip_holidays)
         if study_days_count == 0:
             return []
-        base_per_day = total_units // study_days_count
-        remainder = total_units % study_days_count # יחידות עודפות לחלוקה
-        allocations = [base_per_day + (1 if i < remainder else 0) for i in range(study_days_count)]
 
-        while current_date <= end_date and unit_idx < total_units:
-            # לולאה על כל יום בטווח התאריכים
-            if current_date.weekday() not in no_study_weekdays and not (skip_holidays and is_holiday(current_date)):
-                num_today = allocations[day_idx]
-                if num_today > 0:
-                    todays_units = all_units[unit_idx:unit_idx + num_today]
+        if mode == "פרקים" and balance_chapters_by_mishnayot:
+            # חלוקה לפי אורך הפרקים במשניות
+            for unit in all_units:
+                path = unit["book_display_name"].split(" / ") + [unit["chapter_name"]]
+                node = _get_node_from_path(path, tree_data)
+                unit["length"] = get_length_from_node(node, "משניות") if node else 1
+
+            total_length = sum(u.get("length", 1) for u in all_units)
+            base_per_day = total_length // study_days_count
+            remainder = total_length % study_days_count
+            allocations = [base_per_day + (1 if i < remainder else 0) for i in range(study_days_count)]
+
+            while current_date <= end_date and unit_idx < total_units:
+                if current_date.weekday() not in no_study_weekdays and not (skip_holidays and is_holiday(current_date)):
+                    target = allocations[day_idx] if day_idx < len(allocations) else base_per_day
+                    todays_units = []
+                    length_today = 0
+                    while unit_idx < total_units:
+                        chap = all_units[unit_idx]
+                        chap_len = chap.get("length", 1)
+                        if todays_units and length_today + chap_len > target and day_idx < len(allocations) - 1:
+                            break
+                        todays_units.append(chap)
+                        length_today += chap_len
+                        unit_idx += 1
+                        if length_today >= target:
+                            break
                     first_unit, last_unit = todays_units[0], todays_units[-1]
                     desc = build_description(first_unit, last_unit, mode)
                     schedule.append({
@@ -752,9 +773,31 @@ def _generate_study_schedule(
                         "last_unit": last_unit,
                         "units": todays_units,
                     })
-                    unit_idx += num_today
-                day_idx += 1 # קדם אינדקס יום לימוד
-            current_date += timedelta(days=1)
+                    day_idx += 1
+                current_date += timedelta(days=1)
+        else:
+            base_per_day = total_units // study_days_count
+            remainder = total_units % study_days_count  # יחידות עודפות לחלוקה
+            allocations = [base_per_day + (1 if i < remainder else 0) for i in range(study_days_count)]
+
+            while current_date <= end_date and unit_idx < total_units:
+                # לולאה על כל יום בטווח התאריכים
+                if current_date.weekday() not in no_study_weekdays and not (skip_holidays and is_holiday(current_date)):
+                    num_today = allocations[day_idx]
+                    if num_today > 0:
+                        todays_units = all_units[unit_idx:unit_idx + num_today]
+                        first_unit, last_unit = todays_units[0], todays_units[-1]
+                        desc = build_description(first_unit, last_unit, mode)
+                        schedule.append({
+                            "date": current_date,
+                            "description": desc,
+                            "first_unit": first_unit,
+                            "last_unit": last_unit,
+                            "units": todays_units,
+                        })
+                        unit_idx += num_today
+                    day_idx += 1  # קדם אינדקס יום לימוד
+                current_date += timedelta(days=1)
     else:
         # מצב הספק יומי קבוע
         while unit_idx < total_units:
@@ -1027,6 +1070,7 @@ def write_ics_file(
     skip_holidays=False,
     alarm_time: time | None = None,
     link_template: str = DEFAULT_LESSON_LINK,
+    balance_chapters_by_mishnayot: bool = False,
 ):
     """
     יוצר קובץ ICS (קובץ לוח שנה) המכיל את אירועי הלימוד.
@@ -1044,6 +1088,8 @@ def write_ics_file(
         link_template (str, optional):
             תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
+        balance_chapters_by_mishnayot (bool, optional):
+            אם ``True`` ובחירה במצב "פרקים" למשנה – הפרקים ייאוזנו על פי מספר המשניות שלהם.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-ICS שנוצר, או None אם אירעה שגיאה.
@@ -1057,6 +1103,7 @@ def write_ics_file(
         no_study_weekdays_set,
         units_per_day,
         skip_holidays,
+        balance_chapters_by_mishnayot,
     )
 
     if not schedule:
@@ -1117,6 +1164,7 @@ def write_bookmark_html(
     units_per_day=None,
     skip_holidays=False,
     link_template: str = DEFAULT_LESSON_LINK,
+    balance_chapters_by_mishnayot: bool = False,
 ):
     """
     יוצר קובץ HTML (דף סימנייה) המציג את לוח הלימודים בצורה חודשית.
@@ -1133,11 +1181,23 @@ def write_bookmark_html(
         link_template (str, optional):
             תבנית קישור בה יוחלף ``{ref}`` בהפניה המדויקת בספריא.
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
+        balance_chapters_by_mishnayot (bool, optional):
+            איזון פרקים לפי מספר המשניות כאשר "mode" הוא "פרקים" למשנה.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-HTML שנוצר, או None אם אירעה שגיאה.
     """
-    schedule = _generate_study_schedule(start_date, end_date, titles_list, mode, tree_data, no_study_weekdays_set, units_per_day, skip_holidays)
+    schedule = _generate_study_schedule(
+        start_date,
+        end_date,
+        titles_list,
+        mode,
+        tree_data,
+        no_study_weekdays_set,
+        units_per_day,
+        skip_holidays,
+        balance_chapters_by_mishnayot,
+    )
 
     if not schedule:
         print("אזהרה: לא נוצר לוח לימודים.")
