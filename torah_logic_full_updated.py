@@ -13,6 +13,21 @@ from collections import defaultdict
 # {ref} מוחלף בהפניה המדויקת בספריא (לדוגמה "בראשית.א-ב")
 DEFAULT_LESSON_LINK = "https://www.sefaria.org.il/he/{ref}"
 
+# זיהוי קטגוריית התוכן (תנ"ך, משנה או תלמוד) לפי הנתיב המלא של היחידה
+def detect_content_category(unit: dict) -> str | None:
+    """Return 'tanakh', 'mishnah' or 'talmud' based on the unit path."""
+    path = unit.get("book_display_name", "")
+    if not path:
+        return None
+    first = path.split(" / ")[0]
+    if first.startswith("משנה"):
+        return "mishnah"
+    if "תלמוד" in first:
+        return "talmud"
+    if first in ("תנך", "תנ""ך"):
+        return "tanakh"
+    return None
+
 # ==================== עזרות גימטריה ====================
 class Gematria:
     """
@@ -868,20 +883,6 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | lis
     with open("sefaria_masechet_map.json", "r", encoding="utf-8") as f:
         SEFARIA_MASECHET_MAP = json.load(f)
 
-    def detect_category(unit: dict) -> str | None:
-        """Return 'tanakh', 'mishnah' or 'talmud' based on the unit path."""
-        path = unit.get("book_display_name", "")
-        if not path:
-            return None
-        first = path.split(" / ")[0]
-        if first.startswith("משנה"):
-            return "mishnah"
-        if "תלמוד" in first:
-            return "talmud"
-        if first in ("תנך", "תנ""ך"):
-            return "tanakh"
-        return None
-
     def extract(unit):
         name = unit.get("book_display_name", "")
         parts = name.split(" / ")
@@ -902,7 +903,7 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | lis
         return None
     cross_book = eb and eb != sb
 
-    category = detect_category(first_unit)
+    category = detect_content_category(first_unit)
     book = sb
     if category == "talmud":
         masechet = book.replace("מסכת ", "")
@@ -923,7 +924,7 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | lis
             return None
 
         # map second book name
-        category2 = detect_category(last_unit)
+        category2 = detect_content_category(last_unit)
         book2 = eb
         if category2 == "talmud":
             masechet = book2.replace("מסכת ", "")
@@ -1230,6 +1231,7 @@ def write_bookmark_html(
             "desc": item["description"],
             "links": unit_links,
             "orig_link": orig_link,
+            "category": detect_content_category(item["first_unit"]),
         }
 
     # אוספים את כל הימים בטווח, וממפים אותם לשנה וחודש עברי
@@ -1297,6 +1299,7 @@ def write_bookmark_html(
                         "study_portion": study_info["desc"] if is_in_month and study_info else "",
                         "links": study_info["links"] if is_in_month and study_info else [],
                         "orig_link": study_info["orig_link"] if is_in_month and study_info else "",
+                        "category": study_info["category"] if is_in_month and study_info else "",
                         "is_shabbat": current_day.weekday() == 5 if is_in_month else False,
                         "is_holiday": bool(holiday) if is_in_month else False
                     })
