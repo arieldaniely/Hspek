@@ -258,6 +258,7 @@
     <h3>הגדרות</h3>
     <label><input type="checkbox" id="theme-checkbox"> מצב כהה</label>
     <label><input type="checkbox" id="continuous-checkbox"> תצוגה רציפה</label>
+    <label><input type="checkbox" id="tanakh-range-checkbox"> תנ"ך: טווח פרקים רציף</label>
     <div id="commentary-settings">
       <h4>פרשנים</h4>
       <input id="commentary-search" type="text" placeholder="חפש פרשן" style="width: 100%; margin-bottom: 8px;" />
@@ -285,7 +286,7 @@
                          {% if day.is_shabbat %}{{ cls.append('shabbat') }}{% endif %}
                          {% if day.is_holiday %}{{ cls.append('holiday') }}{% endif %}
                          {% if day.links %}{{ cls.append('has-link') }}{% endif %}
-                         {{ ' '.join(cls) }}"{% if day.links %} data-links='{{ day.links | tojson | safe }}' data-origlink="{{ day.orig_link }}"{% endif %}>
+                         {{ ' '.join(cls) }}"{% if day.links %} data-links='{{ day.links | tojson | safe }}' data-origlink="{{ day.orig_link }}" data-category="{{ day.category }}"{% endif %}>
                 {% if day.hebrew_date %}
                     <div class="day-number">{{ day.hebrew_day_number }}</div>
                     {% if day.label %}<div class="label">{{ day.label }}</div>{% endif %}
@@ -342,6 +343,7 @@
   let currentLinks = [];
   let currentIndex = 0;
   let origLink = '#';
+  let currentCategory = '';
 
   function displayCurrentLink() {
     if (!currentLinks.length) return;
@@ -350,7 +352,11 @@
       linkCounter.textContent = '';
       prevBtn.disabled = true;
       nextBtn.disabled = true;
-      loadAllLinks(currentLinks);
+      if (tanakhRange && currentCategory === 'tanakh') {
+        loadRangeWithCommentaries(currentLinks, origLink);
+      } else {
+        loadAllLinks(currentLinks);
+      }
     } else {
       navArrows.style.display = currentLinks.length > 1 ? 'flex' : 'none';
       linkCounter.textContent = `${currentIndex + 1}/${currentLinks.length}`;
@@ -365,11 +371,14 @@
     const settingsCloseBtn = settingsPanel.querySelector('.settings-close-btn');
     const themeCheckbox = document.getElementById('theme-checkbox');
     const continuousCheckbox = document.getElementById('continuous-checkbox');
+    const tanakhRangeCheckbox = document.getElementById('tanakh-range-checkbox');
     const commentaryList = document.getElementById('commentary-list');
     const commentarySearch = document.getElementById('commentary-search');
     const toggleAllBtn = document.getElementById('toggle-all-commentaries');
     let continuousDisplay = localStorage.getItem('continuousDisplay') === '1';
     if (continuousDisplay) continuousCheckbox.checked = true;
+    let tanakhRange = localStorage.getItem('tanakhRange') === '1';
+    if (tanakhRange) tanakhRangeCheckbox.checked = true;
 
     const NONE_SENTINEL = '__NONE__';
     let allowedCommentaries = new Set(JSON.parse(localStorage.getItem('allowedCommentaries') || '[]'));
@@ -434,6 +443,11 @@
       localStorage.setItem('continuousDisplay', continuousDisplay ? '1' : '0');
     });
 
+    tanakhRangeCheckbox.addEventListener('change', () => {
+      tanakhRange = tanakhRangeCheckbox.checked;
+      localStorage.setItem('tanakhRange', tanakhRange ? '1' : '0');
+    });
+
     if (localStorage.getItem('darkMode') === '1') {
       themeCheckbox.checked = true;
       document.body.classList.add('dark');
@@ -453,7 +467,7 @@
   }
 
 
-  async function fetchSefariaData(sefariaUrl) {
+  async function fetchSefariaData(sefariaUrl, withCommentary = true) {
     let ref = '';
     try {
       const url = new URL(sefariaUrl);
@@ -462,17 +476,18 @@
       throw new Error('קישור לא תקין');
     }
 
-    const cached = sessionStorage.getItem(ref);
+    const cacheKey = ref + (withCommentary ? '#c1' : '#c0');
+    const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
       return JSON.parse(cached);
     }
 
-    const apiUrl = `https://www.sefaria.org.il/api/texts/${ref}?commentary=1&context=0`;
+    const apiUrl = `https://www.sefaria.org.il/api/texts/${ref}?commentary=${withCommentary ? 1 : 0}&context=0`;
     const res = await fetch(apiUrl);
     if (!res.ok) throw new Error();
     const data = await res.json();
     try {
-      sessionStorage.setItem(ref, JSON.stringify(data));
+      sessionStorage.setItem(cacheKey, JSON.stringify(data));
     } catch (e) {
       console.warn('Unable to cache data in sessionStorage', e);
     }
@@ -493,7 +508,7 @@
 
     let data;
     try {
-      data = await fetchSefariaData(sefariaUrl);
+      data = await fetchSefariaData(sefariaUrl, true);
     } catch {
       displayError('שגיאה בטעינת הנתונים');
       return;
@@ -535,13 +550,62 @@
     for (const l of links) {
       let data;
       try {
-        data = await fetchSefariaData(l);
+        data = await fetchSefariaData(l, true);
       } catch {
         displayError('שגיאה בטעינת הנתונים');
         return;
       }
 
       combinedHtml += `<h3>${data.heRef}</h3><div class="source-text">${data.he.join('<br>')}</div>`;
+
+      (data.commentary || []).forEach(c => {
+        const name = c.collectiveTitle?.he || c.commentator || 'לא ידוע';
+        if (!names.includes(name)) names.push(name);
+        if (allowedCommentaries.size && !allowedCommentaries.has(name)) return;
+
+        const rawText = Array.isArray(c.he) ? c.he.join(' ') : c.he || '';
+        const cleanText = rawText.replace(/<[^>]*>/g, '').trim();
+        if (!cleanText) return;
+
+        const dibur = cleanText.split(/[.:!?]/)[0];
+        const highlighted = `<span class="dibur">${dibur}</span>${cleanText.slice(dibur.length)}`;
+
+        if (!grouped.has(name)) grouped.set(name, []);
+        grouped.get(name).push(highlighted);
+      });
+    }
+
+    displayAggregated(combinedHtml, names, grouped);
+  }
+
+  async function loadRangeWithCommentaries(links, orig) {
+    modalTextContainer.style.display = 'none';
+    modalCommentaryContainer.style.display = 'none';
+    modalLoader.style.display = 'block';
+    showModal();
+
+    modalSefariaLink.href = orig || links[0] || '#';
+
+    let combinedHtml = '';
+    const names = [];
+    const grouped = new Map();
+
+    try {
+      const rangeData = await fetchSefariaData(orig, false);
+      combinedHtml += `<h3>${rangeData.heRef}</h3><div class="source-text">${rangeData.he.join('<br>')}</div>`;
+    } catch {
+      displayError('שגיאה בטעינת הנתונים');
+      return;
+    }
+
+    for (const l of links) {
+      let data;
+      try {
+        data = await fetchSefariaData(l, true);
+      } catch {
+        displayError('שגיאה בטעינת הנתונים');
+        return;
+      }
 
       (data.commentary || []).forEach(c => {
         const name = c.collectiveTitle?.he || c.commentator || 'לא ידוע';
@@ -596,6 +660,7 @@
       currentLinks = [];
     }
     const orig = cell.dataset.origlink || currentLinks[0] || '#';
+    currentCategory = cell.dataset.category || '';
     if (currentLinks.length === 0) return;
     origLink = orig;
     currentIndex = 0;
