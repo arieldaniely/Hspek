@@ -65,7 +65,7 @@
     }
 
     .settings-btn.rotated {
-      transform: rotate(90deg);
+      transform: rotate(-90deg);
     }
 
     .settings-panel {
@@ -82,10 +82,17 @@
       max-height: 80vh;
       overflow-y: auto;
       z-index: 1001;
-      display: none;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-15px);
+      transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s;
     }
 
-    .settings-panel.visible { display: block; }
+    .settings-panel.visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
 
     .settings-panel h3 {
       margin-top: 0;
@@ -143,9 +150,9 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: var(--border-color);
+      background-color: #ccc;
       border-radius: 22px;
-      transition: background 0.2s;
+      transition: background-color 0.2s;
     }
     .toggle-slider:before {
       position: absolute;
@@ -154,12 +161,12 @@
       width: 18px;
       left: 2px;
       bottom: 2px;
-      background: var(--card-bg);
+      background-color: white;
       border-radius: 50%;
       transition: transform 0.2s;
     }
     .toggle-switch input:checked + .toggle-slider {
-      background: var(--header-bg);
+      background-color: #3498db;
     }
     .toggle-switch input:checked + .toggle-slider:before {
       transform: translateX(18px);
@@ -350,7 +357,7 @@
     </div>
 
     <div class="settings-item">
-      <span>תנ"ך: טווח פרקים רציף</span>
+      <span>תצוגת פסוקים רציפה</span>
       <label class="toggle-switch">
         <input type="checkbox" id="tanakh-range-checkbox">
         <span class="toggle-slider"></span>
