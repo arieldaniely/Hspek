@@ -197,6 +197,8 @@ class TorahTreeApp(ctk.CTk):
         self.skip_holidays_var = ctk.BooleanVar(value=False)
         # האם לעגל חצאים במספר הדפים כלפי מעלה
         self.round_up_halves_var = ctk.BooleanVar(value=False)
+        # איזון פרקי משנה לפי מספר המשניות שלהם
+        self.balance_chapters_by_mishnayot_var = ctk.BooleanVar(value=False)
         # סוג הזנת תאריך: 'gregorian' או 'hebrew'
         self.date_mode_var = ctk.StringVar(value="hebrew")
         self.settings_window = None
@@ -515,6 +517,12 @@ class TorahTreeApp(ctk.CTk):
             self.settings_window,
             text="עגל חצאי דפים למעלה",
             variable=self.round_up_halves_var
+        ).pack(anchor="w", padx=10, pady=(0,6))
+
+        ctk.CTkCheckBox(
+            self.settings_window,
+            text="איזן פרקי משנה לפי מספר המשניות",
+            variable=self.balance_chapters_by_mishnayot_var
         ).pack(anchor="w", padx=10, pady=(0,6))
 
         ctk.CTkLabel(self.settings_window, text="סוג תאריכים:").pack(anchor="w", padx=10, pady=(10,0))
@@ -933,6 +941,7 @@ class TorahTreeApp(ctk.CTk):
                 units_per_day=self.units_per_day_var.get() if self.schedule_mode_var.get() == 1 else None,
                 skip_holidays=self.skip_holidays_var.get(),
                 alarm_time=alarm_time,
+                balance_chapters_by_mishnayot=self.balance_chapters_by_mishnayot_var.get(),
             )
             messagebox.showinfo("הצלחה", f"הקובץ נשמר:\n{saved_path}")
         except Exception as e:
@@ -1011,7 +1020,8 @@ class TorahTreeApp(ctk.CTk):
                 tree_data=self.data,
                 no_study_weekdays_set=no_study_weekdays_set,
                 units_per_day=self.units_per_day_var.get() if self.schedule_mode_var.get() == 1 else None,
-                skip_holidays=self.skip_holidays_var.get()
+                skip_holidays=self.skip_holidays_var.get(),
+                balance_chapters_by_mishnayot=self.balance_chapters_by_mishnayot_var.get()
             )
             messagebox.showinfo("הצלחה", f"הקובץ HTML נשמר:\n{saved_path}")
             webbrowser.open(saved_path)  # פתיחת הקובץ בדפדפן ברירת המחדל
