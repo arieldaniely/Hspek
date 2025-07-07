@@ -201,6 +201,9 @@ class TorahTreeApp(ctk.CTk):
         self.balance_chapters_by_mishnayot_var = ctk.BooleanVar(value=False)
         # סוג הזנת תאריך: 'gregorian' או 'hebrew'
         self.date_mode_var = ctk.StringVar(value="hebrew")
+        # טקסט עבור מתג בחירת סוג התאריך
+        self.date_mode_label_var = tk.StringVar()
+        self._update_date_mode_label()
         self.settings_window = None
 
         days_of_week = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"]
@@ -456,9 +459,18 @@ class TorahTreeApp(ctk.CTk):
         self.end_date_entry.pack(fill="x", padx=10, pady=(0,5))
         self.toggle_schedule_mode()
 
-    def update_date_mode(self):
+    def _update_date_mode_label(self):
+        """מעדכן את הטקסט במתג בחירת סוג התאריך."""
+        if self.date_mode_var.get() == "hebrew":
+            self.date_mode_label_var.set("עברי")
+        else:
+            self.date_mode_label_var.set("לועזי")
+
+    def update_date_mode(self, *args):
         """מעדכן את שדות התאריך לפי בחירת מצב העבריות."""
         self._build_date_widgets()
+        if hasattr(self, "date_mode_label_var"):
+            self._update_date_mode_label()
 
     def toggle_schedule_mode(self):
         """
@@ -526,20 +538,15 @@ class TorahTreeApp(ctk.CTk):
         ).pack(anchor="w", padx=10, pady=(0,6))
 
         ctk.CTkLabel(self.settings_window, text="סוג תאריכים:").pack(anchor="w", padx=10, pady=(10,0))
-        ctk.CTkRadioButton(
+        self.date_mode_switch = ctk.CTkSwitch(
             self.settings_window,
-            text="לועזי",
+            textvariable=self.date_mode_label_var,
             variable=self.date_mode_var,
-            value="gregorian",
+            onvalue="hebrew",
+            offvalue="gregorian",
             command=self.update_date_mode
-        ).pack(anchor="w", padx=20)
-        ctk.CTkRadioButton(
-            self.settings_window,
-            text="עברי",
-            variable=self.date_mode_var,
-            value="hebrew",
-            command=self.update_date_mode
-        ).pack(anchor="w", padx=20)
+        )
+        self.date_mode_switch.pack(anchor="w", padx=20)
 
     def choose_file(self):
         """
