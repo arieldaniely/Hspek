@@ -13,7 +13,7 @@ import webbrowser
 from pyluach import dates, hebrewcal
 
 # ייבוא פונקציות לוגיות מהמודול הנפרד
-from torah_logic_full_updated import (
+from torah_logic_full_updated1 import (
     load_data, get_length_from_node, has_relevant_data_recursive,
     calculate_study_days, write_ics_file,
     write_bookmark_html, is_holiday,
@@ -249,7 +249,7 @@ class TorahTreeApp(ctk.CTk):
         # MAIN FRAME
         main_frame = ctk.CTkFrame(self, fg_color="#f8fafc")
         main_frame.pack(fill="both", expand=True, padx=10, pady=5)
-        main_frame.grid_columnconfigure(0, weight=3)
+        main_frame.grid_columnconfigure(0, weight=1)
         main_frame.grid_columnconfigure(1, weight=1)
         main_frame.grid_rowconfigure(0, weight=1)
 
@@ -284,7 +284,7 @@ class TorahTreeApp(ctk.CTk):
         self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
 
         # לוח בקרה (Control Panel) - מימין לעץ
-        ctrl_frame = ctk.CTkFrame(main_frame, fg_color="#f0f8ff", corner_radius=18)
+        ctrl_frame = ctk.CTkScrollableFrame(main_frame, fg_color="#f0f8ff", corner_radius=18)
         ctrl_frame.grid(row=0, column=1, sticky="nsew", padx=(0,2), pady=5)
         ctrl_frame.grid_columnconfigure(0, weight=1)
 
