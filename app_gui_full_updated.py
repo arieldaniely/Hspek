@@ -13,7 +13,7 @@ import webbrowser
 from pyluach import dates, hebrewcal
 
 # ייבוא פונקציות לוגיות מהמודול הנפרד
-from torah_logic_full_updated import (
+from torah_logic_full_updated1 import (
     load_data, get_length_from_node, has_relevant_data_recursive,
     calculate_study_days, write_ics_file,
     write_bookmark_html, is_holiday,
@@ -199,6 +199,10 @@ class TorahTreeApp(ctk.CTk):
         self.round_up_halves_var = ctk.BooleanVar(value=False)
         # איזון פרקי משנה לפי מספר המשניות שלהם
         self.balance_chapters_by_mishnayot_var = ctk.BooleanVar(value=False)
+        # מצב חזרות
+        self.enable_reviews_var = ctk.BooleanVar(value=False)
+        self.review_custom_var = ctk.StringVar()
+        self.review_predefined_vars = {}
         # סוג הזנת תאריך: 'gregorian' או 'hebrew'
         self.date_mode_var = ctk.StringVar(value="hebrew")
         # טקסט עבור מתג בחירת סוג התאריך
@@ -245,7 +249,7 @@ class TorahTreeApp(ctk.CTk):
         # MAIN FRAME
         main_frame = ctk.CTkFrame(self, fg_color="#f8fafc")
         main_frame.pack(fill="both", expand=True, padx=10, pady=5)
-        main_frame.grid_columnconfigure(0, weight=3)
+        main_frame.grid_columnconfigure(0, weight=1)
         main_frame.grid_columnconfigure(1, weight=1)
         main_frame.grid_rowconfigure(0, weight=1)
 
@@ -280,7 +284,7 @@ class TorahTreeApp(ctk.CTk):
         self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
 
         # לוח בקרה (Control Panel) - מימין לעץ
-        ctrl_frame = ctk.CTkFrame(main_frame, fg_color="#f0f8ff", corner_radius=18)
+        ctrl_frame = ctk.CTkScrollableFrame(main_frame, fg_color="#f0f8ff", corner_radius=18)
         ctrl_frame.grid(row=0, column=1, sticky="nsew", padx=(0,2), pady=5)
         ctrl_frame.grid_columnconfigure(0, weight=1)
 
@@ -374,6 +378,33 @@ class TorahTreeApp(ctk.CTk):
             )
             cb.grid(row=(i // 4) + 1, column=i % 4, sticky="w", padx=5, pady=(2,3))
         no_study_frame.grid(row=4, column=0, sticky="ew", padx=12, pady=(0, 7))
+
+        # מסגרת למצב חזרות
+        review_frame = ctk.CTkFrame(ctrl_frame, fg_color="#d9e9f6", corner_radius=12)
+        ctk.CTkLabel(review_frame, text="חזרות", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="ne", padx=8, pady=(4,0))
+        self.review_switch = ctk.CTkSwitch(
+            review_frame,
+            text="הפעל חזרות",
+            variable=self.enable_reviews_var,
+            command=self.toggle_review_options,
+        )
+        self.review_switch.pack(anchor="w", padx=10)
+        self.review_options_frame = ctk.CTkFrame(review_frame, fg_color="transparent")
+        options = [
+            (1, "יום אחרי"),
+            (2, "יומיים אחרי"),
+            (7, "שבוע אחרי"),
+            (30, "חודש אחרי"),
+            (365, "שנה אחרי"),
+        ]
+        for i, (days, label) in enumerate(options):
+            var = ctk.BooleanVar(value=False)
+            self.review_predefined_vars[days] = var
+            ctk.CTkCheckBox(self.review_options_frame, text=label, variable=var, text_color="black").grid(row=i//2, column=i%2, sticky="w", padx=10)
+        ctk.CTkLabel(self.review_options_frame, text="ימים נוספים (פסיקים)").grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=(4,0))
+        ctk.CTkEntry(self.review_options_frame, textvariable=self.review_custom_var).grid(row=4, column=0, columnspan=2, sticky="ew", padx=10, pady=(0,6))
+        review_frame.grid(row=5, column=0, sticky="ew", padx=12, pady=(0,7))
+        self.toggle_review_options()
 
         # מסגרת לכפתורי הייצוא (ICS ו-HTML)
         button_frame = ctk.CTkFrame(ctrl_frame, fg_color="transparent")
@@ -547,6 +578,12 @@ class TorahTreeApp(ctk.CTk):
             command=self.update_date_mode
         )
         self.date_mode_switch.pack(anchor="w", padx=20)
+
+    def toggle_review_options(self):
+        if self.enable_reviews_var.get():
+            self.review_options_frame.pack(fill="x", padx=0, pady=(0,6))
+        else:
+            self.review_options_frame.pack_forget()
 
     def choose_file(self):
         """
@@ -792,9 +829,20 @@ class TorahTreeApp(ctk.CTk):
             # מנגנון בטיחות למקרה של תוכנית ארוכה מאוד או בעיה בחישוב
             if days_iterated > 365 * 50: # מעל 50 שנה
                 # במקרה כזה, החישוב כנראה נתקע או שהתוכנית ארוכה מדי
-                return None 
-        
+                return None
+
         return current_date
+
+    def _get_review_offsets(self):
+        """Compute review offsets based on UI selections."""
+        if not self.enable_reviews_var.get():
+            return []
+        offsets = [d for d, var in self.review_predefined_vars.items() if var.get()]
+        for part in self.review_custom_var.get().split(','):
+            part = part.strip()
+            if part.isdigit():
+                offsets.append(int(part))
+        return sorted(set(offsets))
 
     def calculate_and_display_daily_progress(self):
         """
@@ -949,6 +997,7 @@ class TorahTreeApp(ctk.CTk):
                 skip_holidays=self.skip_holidays_var.get(),
                 alarm_time=alarm_time,
                 balance_chapters_by_mishnayot=self.balance_chapters_by_mishnayot_var.get(),
+                review_offsets=self._get_review_offsets(),
             )
             messagebox.showinfo("הצלחה", f"הקובץ נשמר:\n{saved_path}")
         except Exception as e:
@@ -1028,7 +1077,8 @@ class TorahTreeApp(ctk.CTk):
                 no_study_weekdays_set=no_study_weekdays_set,
                 units_per_day=self.units_per_day_var.get() if self.schedule_mode_var.get() == 1 else None,
                 skip_holidays=self.skip_holidays_var.get(),
-                balance_chapters_by_mishnayot=self.balance_chapters_by_mishnayot_var.get()
+                balance_chapters_by_mishnayot=self.balance_chapters_by_mishnayot_var.get(),
+                review_offsets=self._get_review_offsets()
             )
             messagebox.showinfo("הצלחה", f"הקובץ HTML נשמר:\n{saved_path}")
             webbrowser.open(saved_path)  # פתיחת הקובץ בדפדפן ברירת המחדל
