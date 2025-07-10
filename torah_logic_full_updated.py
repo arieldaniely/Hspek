@@ -1072,6 +1072,7 @@ def write_ics_file(
     alarm_time: time | None = None,
     link_template: str = DEFAULT_LESSON_LINK,
     balance_chapters_by_mishnayot: bool = False,
+    review_offsets: list[int] | None = None,
 ):
     """
     יוצר קובץ ICS (קובץ לוח שנה) המכיל את אירועי הלימוד.
@@ -1091,6 +1092,8 @@ def write_ics_file(
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
         balance_chapters_by_mishnayot (bool, optional):
             אם ``True`` ובחירה במצב "פרקים" למשנה – הפרקים ייאוזנו על פי מספר המשניות שלהם.
+        review_offsets (list[int] | None, optional):
+            רשימת מרווחי ימים ליצירת חזרות. אם ``None`` או ריקה לא יופקו נתוני חזרה.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-ICS שנוצר, או None אם אירעה שגיאה.
@@ -1106,6 +1109,10 @@ def write_ics_file(
         skip_holidays,
         balance_chapters_by_mishnayot,
     )
+
+    review_offsets = [o for o in (review_offsets or []) if isinstance(o, int) and o > 0]
+
+    review_offsets = [o for o in (review_offsets or []) if isinstance(o, int) and o > 0]
 
     if not schedule:
         print("אזהרה: לא נוצר לוח לימודים.")
@@ -1135,11 +1142,17 @@ def write_ics_file(
         if alarm_time:
             alarm_dt = datetime.combine(day_data['date'], alarm_time)
             e.alarms = [DisplayAlarm(trigger=alarm_dt)]
+        desc_lines = [day_data['description']]
         if links:
-            e.description = day_data['description'] + "\n" + "\n".join(links)
+            desc_lines.extend(links)
             e.url = links[0]
-        else:
-            e.description = day_data['description']
+        if review_offsets:
+            for off in review_offsets:
+                r_date = day_data['date'] + timedelta(days=off)
+                date_str = r_date.strftime('%d/%m/%Y')
+                link = links[0] if links else ''
+                desc_lines.append(f"חזרה ב-{date_str} {link}")
+        e.description = "\n".join(desc_lines)
         cal.events.add(e)
 
     # יצירת שם קובץ חכם
@@ -1166,6 +1179,7 @@ def write_bookmark_html(
     skip_holidays=False,
     link_template: str = DEFAULT_LESSON_LINK,
     balance_chapters_by_mishnayot: bool = False,
+    review_offsets: list[int] | None = None,
 ):
     """
     יוצר קובץ HTML (דף סימנייה) המציג את לוח הלימודים בצורה חודשית.
@@ -1184,6 +1198,8 @@ def write_bookmark_html(
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
         balance_chapters_by_mishnayot (bool, optional):
             איזון פרקים לפי מספר המשניות כאשר "mode" הוא "פרקים" למשנה.
+        review_offsets (list[int] | None, optional):
+            רשימת מרווחי ימים ליצירת חזרות. אם ``None`` או ריקה לא יופקו נתוני חזרה.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-HTML שנוצר, או None אם אירעה שגיאה.
@@ -1227,11 +1243,17 @@ def write_bookmark_html(
                 else:
                     unit_links.append(link_template.format(ref=quote(ref, safe='.-_%')))
 
+        reviews = []
+        if review_offsets:
+            for off in review_offsets:
+                reviews.append((item["date"] + timedelta(days=off)).strftime('%d/%m/%Y'))
+
         study_map[item["date"]] = {
             "desc": item["description"],
             "links": unit_links,
             "orig_link": orig_link,
             "category": detect_content_category(item["first_unit"]),
+            "reviews": reviews,
         }
 
     # אוספים את כל הימים בטווח, וממפים אותם לשנה וחודש עברי
@@ -1300,6 +1322,7 @@ def write_bookmark_html(
                         "links": study_info["links"] if is_in_month and study_info else [],
                         "orig_link": study_info["orig_link"] if is_in_month and study_info else "",
                         "category": study_info["category"] if is_in_month and study_info else "",
+                        "reviews": study_info.get("reviews", []) if is_in_month and study_info else [],
                         "is_shabbat": current_day.weekday() == 5 if is_in_month else False,
                         "is_holiday": bool(holiday) if is_in_month else False
                     })
