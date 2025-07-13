@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>Hspek Web</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <h1>Hspek Web</h1>
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul class="messages">
+    {% for m in messages %}
+      <li>{{ m }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+  {% endwith %}
+  <form method="post">
+    <label for="titles">רשימת כותרים (שורה לכל פריט):</label>
+    <textarea id="titles" name="titles" rows="4" cols="40">{{ request.form.get('titles','') }}</textarea>
+
+    <label for="mode">סוג ספירה:</label>
+    <select id="mode" name="mode">
+      {% for opt in ['פרקים','משניות','דפים','עמודים'] %}
+      <option value="{{ opt }}" {% if request.form.get('mode') == opt %}selected{% endif %}>{{ opt }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="start_date">תאריך התחלה:</label>
+    <input type="date" id="start_date" name="start_date" value="{{ request.form.get('start_date','') }}">
+
+    <label for="end_date">תאריך סיום:</label>
+    <input type="date" id="end_date" name="end_date" value="{{ request.form.get('end_date','') }}">
+
+    <fieldset>
+      <legend>מצב לוח</legend>
+      <label><input type="radio" name="schedule_mode" value="range" {% if request.form.get('schedule_mode','range') == 'range' %}checked{% endif %}>עד תאריך</label>
+      <label><input type="radio" name="schedule_mode" value="daily" {% if request.form.get('schedule_mode') == 'daily' %}checked{% endif %}>הספק יומי</label>
+    </fieldset>
+
+    <label for="units_per_day">הספק יומי:</label>
+    <input type="number" id="units_per_day" name="units_per_day" min="1" value="{{ request.form.get('units_per_day','1') }}">
+
+    <label><input type="checkbox" name="skip_holidays" {% if request.form.get('skip_holidays') %}checked{% endif %}>דלג על חגים</label>
+    <label><input type="checkbox" name="balance_mishnayot" {% if request.form.get('balance_mishnayot') %}checked{% endif %}>איזון פרקי משנה</label>
+
+    <label for="output_format">פורמט פלט:</label>
+    <select id="output_format" name="output_format">
+      <option value="html" {% if request.form.get('output_format') == 'html' %}selected{% endif %}>HTML</option>
+      <option value="ics" {% if request.form.get('output_format') == 'ics' %}selected{% endif %}>ICS</option>
+    </select>
+
+    <button type="submit">צור קובץ</button>
+  </form>
+</body>
+</html>

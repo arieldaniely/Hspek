@@ -1,0 +1,13 @@
+body {
+  font-family: sans-serif;
+  direction: rtl;
+  text-align: right;
+  margin: 2em;
+}
+label {
+  display: block;
+  margin-top: 10px;
+}
+.messages {
+  color: red;
+}
