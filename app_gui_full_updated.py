@@ -36,6 +36,37 @@ ctk.set_default_color_theme("blue") # הגדרת צבע ברירת מחדל
 
 DEFAULT_FILE = "torah_tree_data_full.json" # קובץ נתונים ברירת מחדל
 
+
+class ToolTip:
+    """Tooltip widget for displaying short hints when hovering over a widget."""
+
+    def __init__(self, widget, text: str):
+        self.widget = widget
+        self.text = text
+        self.tipwindow = None
+        widget.bind("<Enter>", self.show)
+        widget.bind("<Leave>", self.hide)
+
+    def show(self, event=None):
+        if self.tipwindow or not self.text:
+            return
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 1
+        self.tipwindow = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(tw, text=self.text, background="#ffffe0",
+                         relief="solid", borderwidth=1,
+                         font=("Arial", 10, "normal"))
+        label.pack(ipadx=3)
+
+    def hide(self, event=None):
+        tw = self.tipwindow
+        self.tipwindow = None
+        if tw:
+            tw.destroy()
+
+
 # ==============================================================================
 #                                 מחלקת האפליקציה הראשית
 # ==============================================================================
@@ -205,6 +236,8 @@ class TorahTreeApp(ctk.CTk):
         self.date_mode_label_var = tk.StringVar()
         self._update_date_mode_label()
         self.settings_window = None
+        self.overlay = None
+        self.theme_var = ctk.StringVar(value="blue")
 
         days_of_week = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"]
         self.no_study_days = {day: ctk.BooleanVar(value=(day=="שבת")) for day in days_of_week}
@@ -380,21 +413,42 @@ class TorahTreeApp(ctk.CTk):
         button_frame.grid(row=6, column=0, sticky="ew", padx=20, pady=(0, 12))
         button_frame.grid_columnconfigure((0, 1), weight=1)
 
-        ctk.CTkButton(button_frame, text="לקובץ ייצוא ICS", fg_color="#218cfa", hover_color="#186bb7", text_color="white", command=self.export_ics, height=38).grid(row=0, column=0, sticky="ew", padx=(0, 5))
-        ctk.CTkButton(button_frame, text="HTML צור סימנייה", fg_color="#a6d785", hover_color="#7aa557", text_color="black", command=self.export_html, height=38).grid(row=0, column=1, sticky="ew", padx=(5, 0))
+        ics_btn = self.create_button(
+            button_frame,
+            text="לקובץ ייצוא ICS",
+            fg_color="#218cfa",
+            hover_color="#186bb7",
+            text_color="white",
+            command=self.export_ics,
+        )
+        ics_btn.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+
+        html_btn = self.create_button(
+            button_frame,
+            text="HTML צור סימנייה",
+            fg_color="#a6d785",
+            hover_color="#7aa557",
+            text_color="black",
+            command=self.export_html,
+        )
+        html_btn.grid(row=0, column=1, sticky="ew", padx=(5, 0))
+
+        ToolTip(ics_btn, "ייצוא קובץ לוח שנה ICS")
+        ToolTip(html_btn, "יצירת סימנייה אינטראקטיבית")
 
         # לחצן קטן לפתיחת תפריט ההגדרות הצדדי
-        ctk.CTkButton(
+        settings_btn = self.create_button(
             button_frame,
             text="⚙ הגדרות מיוחדות",
             width=28,
-            height=28,
             fg_color="white",
             text_color="black",
             command=self.toggle_settings_panel,
-            border_width=0.6,      # הוספה: עובי מסגרת
-            border_color="black"
-        ).grid(row=1, column=0, columnspan=2, sticky="e", pady=(6, 0))
+            border_width=0.6,
+            border_color="black",
+        )
+        settings_btn.grid(row=1, column=0, columnspan=2, sticky="e", pady=(6, 0))
+        ToolTip(settings_btn, "הגדרות מתקדמות")
         # קישור אירוע בחירה בעץ לפונקציה המתאימה
 
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
@@ -415,6 +469,12 @@ class TorahTreeApp(ctk.CTk):
         center_x = int(screen_width / 2 - window_width / 2)
         center_y = int(screen_height / 2 - window_height / 2)
         self.geometry(f"{window_width}x{window_height}+{center_x}+{center_y}")
+
+    def create_button(self, master, **kwargs):
+        """יוצר כפתור עם הגדרות ברירת מחדל לאחידות בממשק."""
+        defaults = {"height": 38, "corner_radius": 8}
+        defaults.update(kwargs)
+        return ctk.CTkButton(master, **defaults)
 
     def _build_date_widgets(self):
         """בונה מחדש את שדות התאריך בהתאם להגדרת סוג התאריך."""
@@ -495,14 +555,29 @@ class TorahTreeApp(ctk.CTk):
         self.calculate_and_display_daily_progress() # עדכון התווית בעת שינוי מצב
 
     def toggle_settings_panel(self):
-        """מציג או מסתיר חלון צד להגדרות מיוחדות."""
+        """מציג או מסתיר חלון מודאלי להגדרות מיוחדות."""
         if self.settings_window and self.settings_window.winfo_exists():
+            if self.overlay and self.overlay.winfo_exists():
+                self.overlay.destroy()
             self.settings_window.destroy()
             self.settings_window = None
+            self.overlay = None
             return
 
-        self.settings_window = ctk.CTkFrame(self, fg_color="white", width=800)
-        self.settings_window.place(relx=1.0, y=0, relheight=1.0, anchor="ne")
+        # יצירת שכבת הצללה קלה על החלון הראשי
+        self.overlay = tk.Toplevel(self)
+        self.overlay.attributes('-alpha', 0.3)
+        self.overlay.overrideredirect(True)
+        self.overlay.configure(bg='black')
+        self.overlay.geometry(f"{self.winfo_width()}x{self.winfo_height()}+{self.winfo_rootx()}+{self.winfo_rooty()}")
+        self.overlay.lift()
+
+        self.settings_window = ctk.CTkToplevel(self)
+        self.settings_window.title("הגדרות")
+        self.settings_window.geometry("320x400")
+        self.settings_window.transient(self)
+        self.settings_window.grab_set()
+        self.settings_window.protocol("WM_DELETE_WINDOW", self.toggle_settings_panel)
 
         # כפתור סגירה עגול בפינת החלון
         ctk.CTkButton(
@@ -547,6 +622,18 @@ class TorahTreeApp(ctk.CTk):
             command=self.update_date_mode
         )
         self.date_mode_switch.pack(anchor="w", padx=20)
+
+        ctk.CTkLabel(self.settings_window, text="ערכת צבע:").pack(anchor="w", padx=10, pady=(10,0))
+        ctk.CTkOptionMenu(
+            self.settings_window,
+            variable=self.theme_var,
+            values=["blue", "green", "dark-blue"],
+            command=self.apply_theme
+        ).pack(anchor="w", padx=20)
+
+    def apply_theme(self, value):
+        """עדכון ערכת הצבע של הממשק."""
+        ctk.set_default_color_theme(value)
 
     def choose_file(self):
         """
