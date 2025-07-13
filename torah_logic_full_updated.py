@@ -1072,6 +1072,7 @@ def write_ics_file(
     alarm_time: time | None = None,
     link_template: str = DEFAULT_LESSON_LINK,
     balance_chapters_by_mishnayot: bool = False,
+    review_offsets: list[int] | None = None,
 ):
     """
     יוצר קובץ ICS (קובץ לוח שנה) המכיל את אירועי הלימוד.
@@ -1091,6 +1092,8 @@ def write_ics_file(
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
         balance_chapters_by_mishnayot (bool, optional):
             אם ``True`` ובחירה במצב "פרקים" למשנה – הפרקים ייאוזנו על פי מספר המשניות שלהם.
+        review_offsets (list[int] | None, optional):
+            רשימת מרווחי ימים ליצירת חזרות. אם ``None`` או ריקה לא יופקו נתוני חזרה.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-ICS שנוצר, או None אם אירעה שגיאה.
@@ -1106,6 +1109,10 @@ def write_ics_file(
         skip_holidays,
         balance_chapters_by_mishnayot,
     )
+
+    review_offsets = [o for o in (review_offsets or []) if isinstance(o, int) and o > 0]
+
+    review_offsets = [o for o in (review_offsets or []) if isinstance(o, int) and o > 0]
 
     if not schedule:
         print("אזהרה: לא נוצר לוח לימודים.")
@@ -1128,6 +1135,15 @@ def write_ics_file(
                 links = [link_template.format(ref=quote(r, safe='.-_%')) for r in ref]
             else:
                 links = [link_template.format(ref=quote(ref, safe='.-_%'))]
+
+        # Hebrew date for the main study day
+        h_d = dates.GregorianDate(
+            day_data["date"].year,
+            day_data["date"].month,
+            day_data["date"].day,
+        ).to_heb()
+        hebrew_date_str = h_d.hebrew_date_string(True)
+
         e = Event()
         e.name = event_base_name
         e.begin = day_data['date'].strftime('%Y-%m-%d')
@@ -1135,11 +1151,20 @@ def write_ics_file(
         if alarm_time:
             alarm_dt = datetime.combine(day_data['date'], alarm_time)
             e.alarms = [DisplayAlarm(trigger=alarm_dt)]
+
+        desc_lines = [f"{day_data['description']} ({hebrew_date_str})"]
         if links:
-            e.description = day_data['description'] + "\n" + "\n".join(links)
+            desc_lines.extend(links)
             e.url = links[0]
-        else:
-            e.description = day_data['description']
+        if review_offsets:
+            for off in review_offsets:
+                r_date = day_data['date'] + timedelta(days=off)
+                date_str = r_date.strftime('%d/%m/%Y')
+                h_r = dates.GregorianDate(r_date.year, r_date.month, r_date.day).to_heb()
+                hebrew_r_str = h_r.hebrew_date_string(True)
+                link = links[0] if links else ''
+                desc_lines.append(f"חזרה ב-{date_str} ({hebrew_r_str}) {link}")
+        e.description = "\n".join(desc_lines)
         cal.events.add(e)
 
     # יצירת שם קובץ חכם
@@ -1166,6 +1191,7 @@ def write_bookmark_html(
     skip_holidays=False,
     link_template: str = DEFAULT_LESSON_LINK,
     balance_chapters_by_mishnayot: bool = False,
+    review_offsets: list[int] | None = None,
 ):
     """
     יוצר קובץ HTML (דף סימנייה) המציג את לוח הלימודים בצורה חודשית.
@@ -1184,6 +1210,8 @@ def write_bookmark_html(
             ברירת המחדל היא ``DEFAULT_LESSON_LINK``.
         balance_chapters_by_mishnayot (bool, optional):
             איזון פרקים לפי מספר המשניות כאשר "mode" הוא "פרקים" למשנה.
+        review_offsets (list[int] | None, optional):
+            רשימת מרווחי ימים ליצירת חזרות. אם ``None`` או ריקה לא יופקו נתוני חזרה.
 
     Returns:
         str or None: הנתיב המלא לקובץ ה-HTML שנוצר, או None אם אירעה שגיאה.
@@ -1227,11 +1255,21 @@ def write_bookmark_html(
                 else:
                     unit_links.append(link_template.format(ref=quote(ref, safe='.-_%')))
 
+        reviews = []
+        if review_offsets:
+            for off in review_offsets:
+                rev_date = item["date"] + timedelta(days=off)
+                rev_str = rev_date.strftime('%d/%m/%Y')
+                h_rev = dates.GregorianDate(rev_date.year, rev_date.month, rev_date.day).to_heb()
+                rev_str += f" ({h_rev.hebrew_date_string(True)})"
+                reviews.append(rev_str)
+
         study_map[item["date"]] = {
             "desc": item["description"],
             "links": unit_links,
             "orig_link": orig_link,
             "category": detect_content_category(item["first_unit"]),
+            "reviews": reviews,
         }
 
     # אוספים את כל הימים בטווח, וממפים אותם לשנה וחודש עברי
@@ -1295,11 +1333,13 @@ def write_bookmark_html(
                         "is_in_month": is_in_month,
                         "hebrew_date": hebrew_date,
                         "hebrew_day_number": hebrew_day_number,
+                        "gregorian_date": current_day.strftime('%d/%m/%Y'),
                         "label": label,
                         "study_portion": study_info["desc"] if is_in_month and study_info else "",
                         "links": study_info["links"] if is_in_month and study_info else [],
                         "orig_link": study_info["orig_link"] if is_in_month and study_info else "",
                         "category": study_info["category"] if is_in_month and study_info else "",
+                        "reviews": study_info.get("reviews", []) if is_in_month and study_info else [],
                         "is_shabbat": current_day.weekday() == 5 if is_in_month else False,
                         "is_holiday": bool(holiday) if is_in_month else False
                     })

@@ -232,6 +232,7 @@ body, table, th, td, .settings-panel, .settings-btn, .modal-content {
     td:hover { background: #eef8ff; }
     .not-in-month { background-color: #f0f2f5; color: #aaa; }
     .day-number { font-weight: bold; color: #2980b9; }
+    .greg-date { font-size: 0.8em; color: #555; }
     .label { font-weight: bold; color: #c0392b; }
     .study { color: #27ae60; margin-top: 4px; }
     .study-link {
@@ -279,6 +280,7 @@ body, table, th, td, .settings-panel, .settings-btn, .modal-content {
       background: none; border: none; font-size: 2rem; cursor: pointer;
     }
     .modal-body { padding-top: 30px; }
+    #modal-review-container { margin-bottom: 10px; }
     .modal-footer {
       text-align: center; margin-top: 25px; padding-top: 15px;
       border-top: 1px solid var(--border-color);
@@ -401,9 +403,9 @@ body, table, th, td, .settings-panel, .settings-btn, .modal-content {
                          {% if day.is_shabbat %}{{ cls.append('shabbat') }}{% endif %}
                          {% if day.is_holiday %}{{ cls.append('holiday') }}{% endif %}
                          {% if day.links %}{{ cls.append('has-link') }}{% endif %}
-                         {{ ' '.join(cls) }}"{% if day.links %} data-links='{{ day.links | tojson | safe }}' data-origlink="{{ day.orig_link }}" data-category="{{ day.category }}"{% endif %}>
+                         {{ ' '.join(cls) }}"{% if day.links %} data-links='{{ day.links | tojson | safe }}' data-origlink="{{ day.orig_link }}" data-category="{{ day.category }}"{% endif %}{% if day.reviews %} data-reviews='{{ day.reviews | tojson | safe }}'{% endif %}>
                 {% if day.hebrew_date %}
-                    <div class="day-number">{{ day.hebrew_day_number }}</div>
+                    <div class="day-number">{{ day.hebrew_day_number }}<br><span class="greg-date">{{ day.gregorian_date }}</span></div>
                     {% if day.label %}<div class="label">{{ day.label }}</div>{% endif %}
                     {% if day.study_portion %}<div class="study">{{ day.study_portion }}</div>{% endif %}
                     {% if day.links %}
@@ -428,6 +430,7 @@ body, table, th, td, .settings-panel, .settings-btn, .modal-content {
       <button class="modal-close-btn">&times;</button>
       <div class="modal-body">
         <div id="modal-loader">טוען...</div>
+        <div id="modal-review-container" style="display: none;"></div>
         <div id="modal-text-container" style="display: none;"></div>
         <div id="modal-commentary-container" style="display: none;"></div>
       </div>
@@ -448,6 +451,7 @@ body, table, th, td, .settings-panel, .settings-btn, .modal-content {
     const modalCloseBtn = modal.querySelector('.modal-close-btn');
     const modalTextContainer = document.getElementById('modal-text-container');
     const modalCommentaryContainer = document.getElementById('modal-commentary-container');
+    const modalReviewContainer = document.getElementById('modal-review-container');
   const modalSefariaLink = document.getElementById('modal-sefaria-link');
   const modalLoader = document.getElementById('modal-loader');
   const prevBtn = document.getElementById('prev-link');
@@ -579,6 +583,8 @@ body, table, th, td, .settings-panel, .settings-btn, .modal-content {
     document.body.style.overflow = '';
     modalTextContainer.innerHTML = '';
     modalCommentaryContainer.innerHTML = '';
+    modalReviewContainer.innerHTML = '';
+    modalReviewContainer.style.display = 'none';
   }
 
 
@@ -774,11 +780,22 @@ body, table, th, td, .settings-panel, .settings-btn, .modal-content {
     } catch {
       currentLinks = [];
     }
+    let reviews = [];
+    try {
+      reviews = JSON.parse(cell.dataset.reviews || '[]');
+    } catch { reviews = []; }
     const orig = cell.dataset.origlink || currentLinks[0] || '#';
     currentCategory = cell.dataset.category || '';
     if (currentLinks.length === 0) return;
     origLink = orig;
     currentIndex = 0;
+    if (reviews.length) {
+      modalReviewContainer.style.display = 'block';
+      modalReviewContainer.innerHTML = '<b>תאריכי חזרה:</b><br>' + reviews.join('<br>');
+    } else {
+      modalReviewContainer.style.display = 'none';
+      modalReviewContainer.innerHTML = '';
+    }
     displayCurrentLink();
   });
 
