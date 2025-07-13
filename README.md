@@ -18,10 +18,15 @@
    ```bash
    pip install -r requirements.txt
    ```
-2. הריצו את התוכנה:
+2. הריצו את התוכנה המלאה עם הממשק הגרפי הקיים:
    ```bash
    python app_gui_full_updated.py
    ```
+3. להפעלת הממשק הדפדפני החדש:
+   ```bash
+   python web_app/app.py
+   ```
+   ואז לפתוח את `http://localhost:5000` בדפדפן.
 
 ## תפעול כללי
 1. בחרו פריטים מעץ הלימוד המוצג במסך הראשי.
