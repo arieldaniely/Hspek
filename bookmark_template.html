@@ -232,6 +232,7 @@ body, table, th, td, .settings-panel, .settings-btn, .modal-content {
     td:hover { background: #eef8ff; }
     .not-in-month { background-color: #f0f2f5; color: #aaa; }
     .day-number { font-weight: bold; color: #2980b9; }
+    .greg-date { font-size: 0.8em; color: #555; }
     .label { font-weight: bold; color: #c0392b; }
     .study { color: #27ae60; margin-top: 4px; }
     .study-link {
@@ -404,7 +405,7 @@ body, table, th, td, .settings-panel, .settings-btn, .modal-content {
                          {% if day.links %}{{ cls.append('has-link') }}{% endif %}
                          {{ ' '.join(cls) }}"{% if day.links %} data-links='{{ day.links | tojson | safe }}' data-origlink="{{ day.orig_link }}" data-category="{{ day.category }}"{% endif %}{% if day.reviews %} data-reviews='{{ day.reviews | tojson | safe }}'{% endif %}>
                 {% if day.hebrew_date %}
-                    <div class="day-number">{{ day.hebrew_day_number }}</div>
+                    <div class="day-number">{{ day.hebrew_day_number }}<br><span class="greg-date">{{ day.gregorian_date }}</span></div>
                     {% if day.label %}<div class="label">{{ day.label }}</div>{% endif %}
                     {% if day.study_portion %}<div class="study">{{ day.study_portion }}</div>{% endif %}
                     {% if day.links %}

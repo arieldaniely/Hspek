@@ -1135,6 +1135,15 @@ def write_ics_file(
                 links = [link_template.format(ref=quote(r, safe='.-_%')) for r in ref]
             else:
                 links = [link_template.format(ref=quote(ref, safe='.-_%'))]
+
+        # Hebrew date for the main study day
+        h_d = dates.GregorianDate(
+            day_data["date"].year,
+            day_data["date"].month,
+            day_data["date"].day,
+        ).to_heb()
+        hebrew_date_str = h_d.hebrew_date_string(True)
+
         e = Event()
         e.name = event_base_name
         e.begin = day_data['date'].strftime('%Y-%m-%d')
@@ -1142,7 +1151,8 @@ def write_ics_file(
         if alarm_time:
             alarm_dt = datetime.combine(day_data['date'], alarm_time)
             e.alarms = [DisplayAlarm(trigger=alarm_dt)]
-        desc_lines = [day_data['description']]
+
+        desc_lines = [f"{day_data['description']} ({hebrew_date_str})"]
         if links:
             desc_lines.extend(links)
             e.url = links[0]
@@ -1150,8 +1160,10 @@ def write_ics_file(
             for off in review_offsets:
                 r_date = day_data['date'] + timedelta(days=off)
                 date_str = r_date.strftime('%d/%m/%Y')
+                h_r = dates.GregorianDate(r_date.year, r_date.month, r_date.day).to_heb()
+                hebrew_r_str = h_r.hebrew_date_string(True)
                 link = links[0] if links else ''
-                desc_lines.append(f"חזרה ב-{date_str} {link}")
+                desc_lines.append(f"חזרה ב-{date_str} ({hebrew_r_str}) {link}")
         e.description = "\n".join(desc_lines)
         cal.events.add(e)
 
@@ -1246,7 +1258,11 @@ def write_bookmark_html(
         reviews = []
         if review_offsets:
             for off in review_offsets:
-                reviews.append((item["date"] + timedelta(days=off)).strftime('%d/%m/%Y'))
+                rev_date = item["date"] + timedelta(days=off)
+                rev_str = rev_date.strftime('%d/%m/%Y')
+                h_rev = dates.GregorianDate(rev_date.year, rev_date.month, rev_date.day).to_heb()
+                rev_str += f" ({h_rev.hebrew_date_string(True)})"
+                reviews.append(rev_str)
 
         study_map[item["date"]] = {
             "desc": item["description"],
@@ -1317,6 +1333,7 @@ def write_bookmark_html(
                         "is_in_month": is_in_month,
                         "hebrew_date": hebrew_date,
                         "hebrew_day_number": hebrew_day_number,
+                        "gregorian_date": current_day.strftime('%d/%m/%Y'),
                         "label": label,
                         "study_portion": study_info["desc"] if is_in_month and study_info else "",
                         "links": study_info["links"] if is_in_month and study_info else [],
