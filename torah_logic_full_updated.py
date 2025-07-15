@@ -13,6 +13,7 @@ from collections import defaultdict
 # {ref} מוחלף בהפניה המדויקת בספריא (לדוגמה "בראשית.א-ב")
 DEFAULT_LESSON_LINK = "https://www.sefaria.org.il/he/{ref}"
 
+
 # זיהוי קטגוריית התוכן (תנ"ך, משנה או תלמוד) לפי הנתיב המלא של היחידה
 def detect_content_category(unit: dict) -> str | None:
     """Return 'tanakh', 'mishnah' or 'talmud' based on the unit path."""
@@ -24,9 +25,10 @@ def detect_content_category(unit: dict) -> str | None:
         return "mishnah"
     if "תלמוד" in first:
         return "talmud"
-    if first in ("תנך", "תנ""ך"):
+    if first in ("תנך", "תנ" "ך"):
         return "tanakh"
     return None
+
 
 # ==================== עזרות גימטריה ====================
 class Gematria:
@@ -34,17 +36,65 @@ class Gematria:
     מחלקה המספקת כלי עזר לעבודה עם גימטריה עברית.
     כולל המרה ממספר לגימטריה וההפך.
     """
+
     _hebrew_letters_map = {
-        1: 'א', 2: 'ב', 3: 'ג', 4: 'ד', 5: 'ה', 6: 'ו', 7: 'ז', 8: 'ח', 9: 'ט',
-        10: 'י', 20: 'כ', 30: 'ל', 40: 'מ', 50: 'נ', 60: 'ס', 70: 'ע', 80: 'פ', 90: 'צ',
-        100: 'ק', 200: 'ר', 300: 'ש', 400: 'ת', 500: 'תק', 600: 'תר', 700: 'תש', 800: 'תת', 900: 'תתק'
+        1: "א",
+        2: "ב",
+        3: "ג",
+        4: "ד",
+        5: "ה",
+        6: "ו",
+        7: "ז",
+        8: "ח",
+        9: "ט",
+        10: "י",
+        20: "כ",
+        30: "ל",
+        40: "מ",
+        50: "נ",
+        60: "ס",
+        70: "ע",
+        80: "פ",
+        90: "צ",
+        100: "ק",
+        200: "ר",
+        300: "ש",
+        400: "ת",
+        500: "תק",
+        600: "תר",
+        700: "תש",
+        800: "תת",
+        900: "תתק",
     }
 
     _hebrew_letter_values = {
-        'א': 1, 'ב': 2, 'ג': 3, 'ד': 4, 'ה': 5, 'ו': 6, 'ז': 7, 'ח': 8, 'ט': 9,
-        'י': 10, 'כ': 20, 'ך': 20, 'ל': 30, 'מ': 40, 'ם': 40, 'נ': 50, 'ן': 50,
-        'ס': 60, 'ע': 70, 'פ': 80, 'ף': 80, 'צ': 90, 'ץ': 90, 'ק': 100,
-        'ר': 200, 'ש': 300, 'ת': 400
+        "א": 1,
+        "ב": 2,
+        "ג": 3,
+        "ד": 4,
+        "ה": 5,
+        "ו": 6,
+        "ז": 7,
+        "ח": 8,
+        "ט": 9,
+        "י": 10,
+        "כ": 20,
+        "ך": 20,
+        "ל": 30,
+        "מ": 40,
+        "ם": 40,
+        "נ": 50,
+        "ן": 50,
+        "ס": 60,
+        "ע": 70,
+        "פ": 80,
+        "ף": 80,
+        "צ": 90,
+        "ץ": 90,
+        "ק": 100,
+        "ר": 200,
+        "ש": 300,
+        "ת": 400,
     }
 
     @classmethod
@@ -75,38 +125,43 @@ class Gematria:
         if thousands > 0:
             # מקרים כמו 1000 -> א׳, 2000 -> ב׳, וכו'.
             # נניח שאלף יחיד נכתב 'א׳' ולא 'תתקק' או משהו דומה
-            if thousands in cls._hebrew_letters_map: # תומך באלפים בודדים (1-9)
-                result.append(cls._hebrew_letters_map[thousands] + '׳')
-
+            if thousands in cls._hebrew_letters_map:  # תומך באלפים בודדים (1-9)
+                result.append(cls._hebrew_letters_map[thousands] + "׳")
 
         # טיפול בשאר המספר (עד 999)
         remainder = num % 1000
         if remainder == 0 and thousands > 0:
             # אם יש אלפים ואין שארית (לדוגמה 1000, 2000), סיימנו
             pass
-        elif remainder == 15: # טיפול מיוחד ל-15
-            result.append('טו')
-        elif remainder == 16: # טיפול מיוחד ל-16
-            result.append('טז')
+        elif remainder == 15:  # טיפול מיוחד ל-15
+            result.append("טו")
+        elif remainder == 16:  # טיפול מיוחד ל-16
+            result.append("טז")
         else:
             # פירוק למאות, עשרות ויחידות
             hundreds = (remainder // 100) * 100
             tens_units = remainder % 100
 
             if hundreds > 0:
-                result.append(cls._hebrew_letters_map.get(hundreds, '')) # הוספת אותיות המאות
-            
+                result.append(
+                    cls._hebrew_letters_map.get(hundreds, "")
+                )  # הוספת אותיות המאות
+
             # אם יש שאר עשרות ויחידות
             if tens_units > 0 and tens_units != 15 and tens_units != 16:
                 tens = (tens_units // 10) * 10
                 units = tens_units % 10
 
                 if tens > 0:
-                    result.append(cls._hebrew_letters_map.get(tens, '')) # הוספת אותיות העשרות
+                    result.append(
+                        cls._hebrew_letters_map.get(tens, "")
+                    )  # הוספת אותיות העשרות
                 if units > 0:
-                    result.append(cls._hebrew_letters_map.get(units, '')) # הוספת אותיות היחידות
+                    result.append(
+                        cls._hebrew_letters_map.get(units, "")
+                    )  # הוספת אותיות היחידות
             elif remainder == 0:
-                pass # במקרה של מספרים עגולים כמו 1000, 2000 וכו' לא נוסיף כלום
+                pass  # במקרה של מספרים עגולים כמו 1000, 2000 וכו' לא נוסיף כלום
 
         final_string = "".join(result)
 
@@ -115,19 +170,19 @@ class Gematria:
             # יש לוודא שהגרש הכפול לא ייכנס בתוך חלק האלפים
             # לדוגמה: 2222 -> ב׳רכב (הגרש לא משפיע על ה-ב')
             # אם final_string מסתיים בגרש של אלפים (׳), לא נוסיף ״
-            if final_string[-1] == '׳':
-                pass # כבר יש גרש, לא נוסיף כפול
-            elif '׳' in final_string: # אם יש גרש של אלפים איפשהו באמצע
+            if final_string[-1] == "׳":
+                pass  # כבר יש גרש, לא נוסיף כפול
+            elif "׳" in final_string:  # אם יש גרש של אלפים איפשהו באמצע
                 # לדוגמה 'ב׳רכב' -> ב׳רכ״ב
                 # נחפש את המיקום של הגרש, ונוסיף את הגרשיים רק אחריו
-                parts = final_string.split('׳')
-                if len(parts[1]) > 0: # אם יש חלק אחרי הגרש
-                     final_string = parts[0] + '׳' + parts[1][:-1] + '״' + parts[1][-1]
-                else: # אם אין חלק אחרי הגרש (לדוגמה 1000 -> א׳)
-                    pass # לא מוסיפים ״
-            elif final_string and final_string[-1] != '׳':
+                parts = final_string.split("׳")
+                if len(parts[1]) > 0:  # אם יש חלק אחרי הגרש
+                    final_string = parts[0] + "׳" + parts[1][:-1] + "״" + parts[1][-1]
+                else:  # אם אין חלק אחרי הגרש (לדוגמה 1000 -> א׳)
+                    pass  # לא מוסיפים ״
+            elif final_string and final_string[-1] != "׳":
                 # טיפול במקרים רגילים ללא אלפים, או כשהחלק המרכזי הוא היחיד
-                final_string = final_string[:-1] + '״' + final_string[-1]
+                final_string = final_string[:-1] + "״" + final_string[-1]
 
         return final_string
 
@@ -148,22 +203,37 @@ class Gematria:
         total = 0
         # עבור המרה חזרה, נצטרך להתחשב גם בגרש אלפים ובגרש כפול אם הם שם
         # נוריד אותם ונחשב רק את האותיות
-        cleaned_hebrew = hebrew.replace('׳', '').replace('״', '')
+        cleaned_hebrew = hebrew.replace("׳", "").replace("״", "")
         for ch in cleaned_hebrew:
             total += cls._hebrew_letter_values.get(ch, 0)
         return total
+
 
 HEBREW_NUMBERS_AVAILABLE = True
 
 HEBREW_WEEKDAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"]
 HEBREW_MONTH_NAMES = [
-    "ניסן", "אייר", "סיון", "תמוז", "אב", "אלול",
-    "תשרי", "מרחשון", "כסלו", "טבת", "שבט", "אדר",
-    "אדר א'", "אדר ב'"
+    "ניסן",
+    "אייר",
+    "סיון",
+    "תמוז",
+    "אב",
+    "אלול",
+    "תשרי",
+    "מרחשון",
+    "כסלו",
+    "טבת",
+    "שבט",
+    "אדר",
+    "אדר א'",
+    "אדר ב'",
 ]
 
+
 # ==================== פונקציות עזר לחגים לאומיים ====================
-def get_israeli_national_holiday_on_gregorian_date(gregorian_date_to_check: date, hebrew_year: int) -> str | None:
+def get_israeli_national_holiday_on_gregorian_date(
+    gregorian_date_to_check: date, hebrew_year: int
+) -> str | None:
     """
     בודק האם תאריך גרגוריאני נתון הוא יום הזיכרון, יום העצמאות או יום ירושלים
     בשנה עברית מסוימת, תוך התחשבות בדחיות.
@@ -179,11 +249,13 @@ def get_israeli_national_holiday_on_gregorian_date(gregorian_date_to_check: date
     # --- יום הזיכרון ויום העצמאות ---
     # יום העצמאות חל במקור בה' באייר. יום הזיכרון יום לפניו.
     # חודש אייר הוא החודש השני לפי ספירת חודשי השנה של pyluach (ניסן=1)
-    
+
     # קביעת ה' באייר המקורי
     hd_iyar_5_original = dates.HebrewDate(hebrew_year, 2, 5)
     gd_iyar_5_original = hd_iyar_5_original.to_pydate()
-    weekday_iyar_5_original = gd_iyar_5_original.weekday()  # שני=0, שלישי=1 ... שישי=4, שבת=5, ראשון=6
+    weekday_iyar_5_original = (
+        gd_iyar_5_original.weekday()
+    )  # שני=0, שלישי=1 ... שישי=4, שבת=5, ראשון=6
 
     actual_hd_yom_haatzmaut = hd_iyar_5_original
 
@@ -194,7 +266,9 @@ def get_israeli_national_holiday_on_gregorian_date(gregorian_date_to_check: date
     elif weekday_iyar_5_original == 5:  # אם ה' באייר הוא שבת
         # יום העצמאות מוקדם ליום חמישי, ג' באייר
         actual_hd_yom_haatzmaut = dates.HebrewDate(hebrew_year, 2, 3)
-    elif weekday_iyar_5_original == 0:  # אם ה' באייר הוא יום שני (כלומר ד' באייר, יום הזיכרון המקורי, הוא ראשון)
+    elif (
+        weekday_iyar_5_original == 0
+    ):  # אם ה' באייר הוא יום שני (כלומר ד' באייר, יום הזיכרון המקורי, הוא ראשון)
         # יום העצמאות נדחה ליום שלישי, ו' באייר (כדי למנוע חילול שבת בהכנות ליום הזיכרון)
         actual_hd_yom_haatzmaut = dates.HebrewDate(hebrew_year, 2, 6)
 
@@ -219,24 +293,28 @@ def get_israeli_national_holiday_on_gregorian_date(gregorian_date_to_check: date
     if weekday_iyar_28_original == 4:  # אם כ"ח באייר הוא יום שישי
         # יום ירושלים מוקדם ליום חמישי, כ"ז באייר
         actual_hd_yom_yerushalayim = dates.HebrewDate(hebrew_year, 2, 27)
-    elif weekday_iyar_28_original == 5: # אם כ"ח באייר הוא שבת
+    elif weekday_iyar_28_original == 5:  # אם כ"ח באייר הוא שבת
         # יום ירושלים נדחה ליום ראשון, כ"ט באייר (לפי הנוהג המקובל)
         actual_hd_yom_yerushalayim = dates.HebrewDate(hebrew_year, 2, 29)
-        
+
     actual_gd_yom_yerushalayim = actual_hd_yom_yerushalayim.to_pydate()
     if gregorian_date_to_check == actual_gd_yom_yerushalayim:
         return "יום ירושלים"
 
     return None
 
+
 # ==================== בדיקת חגים ====================
 def is_holiday(gregorian_date: date) -> bool:
     """בודק אם תאריך גרגוריאני כלשהו הוא חג או מועד ישראלי (לא כולל שבת)."""
-    g_date = dates.GregorianDate(gregorian_date.year, gregorian_date.month, gregorian_date.day)
+    g_date = dates.GregorianDate(
+        gregorian_date.year, gregorian_date.month, gregorian_date.day
+    )
     h_d = g_date.to_heb()
     regular_holiday = h_d.holiday(hebrew=True, israel=True)
     national = get_israeli_national_holiday_on_gregorian_date(gregorian_date, h_d.year)
     return bool(regular_holiday or national)
+
 
 # ==================== כלי עזר ====================
 def load_data(path):
@@ -251,6 +329,7 @@ def load_data(path):
     """
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
 
 def has_relevant_data_recursive(node, mode):
     """
@@ -279,13 +358,16 @@ def has_relevant_data_recursive(node, mode):
             return True
     for key, val in node.items():
         # מדלגים על מפתחות שאינם מייצגים תתי-ענפים לצורך הרקורסיה
-        if key in ["אורך בדפים", "עמוד אחרון", "משניות", "פרקים"] and not isinstance(val, dict):
+        if key in ["אורך בדפים", "עמוד אחרון", "משניות", "פרקים"] and not isinstance(
+            val, dict
+        ):
             continue
         if isinstance(val, dict):
             # קריאה רקורסיבית עבור תתי-צמתים
             if has_relevant_data_recursive(val, mode):
                 return True
     return False
+
 
 def get_length_from_node(node, mode):
     """
@@ -314,7 +396,11 @@ def get_length_from_node(node, mode):
             total += node["פרקים"]
         else:
             # אם אין מפתח "פרקים" מפורש, סופרים תתי-צמתים ששמם מתחיל ב"פרק "
-            total += sum(1 for key, val in node.items() if key.startswith("פרק ") and isinstance(val, dict))
+            total += sum(
+                1
+                for key, val in node.items()
+                if key.startswith("פרק ") and isinstance(val, dict)
+            )
     elif mode == "משניות":
         if "משניות" in node and isinstance(node["משניות"], int):
             total += node["משניות"]
@@ -323,9 +409,10 @@ def get_length_from_node(node, mode):
             total += node["אורך בדפים"]
     elif mode == "עמודים":
         if "אורך בדפים" in node and isinstance(node["אורך בדפים"], (int, float)):
-            total += node["אורך בדפים"] * 2 # כל דף הוא שני עמודים
+            total += node["אורך בדפים"] * 2  # כל דף הוא שני עמודים
 
     return total
+
 
 def calculate_study_days(start_date, end_date, no_study_weekdays, skip_holidays=False):
     """
@@ -350,6 +437,7 @@ def calculate_study_days(start_date, end_date, no_study_weekdays, skip_holidays=
         current_date += timedelta(days=1)
     return count
 
+
 def _convert_int_to_hebrew_gematria(num):
     """
     פונקציית עזר להמרת מספר שלם לגימטריה עברית ללא פיסוק.
@@ -366,6 +454,7 @@ def _convert_int_to_hebrew_gematria(num):
         except Exception:
             return str(num)
     return str(num)
+
 
 def _hebrew_chapter_sort_key(chap_str):
     """
@@ -386,6 +475,7 @@ def _hebrew_chapter_sort_key(chap_str):
             return chap_str
     return chap_str
 
+
 def _get_node_from_path(path_parts, tree_data):
     """
     מאחזר צומת ספציפי מעץ הנתונים על פי נתיב נתון.
@@ -404,6 +494,7 @@ def _get_node_from_path(path_parts, tree_data):
             return None
     return node
 
+
 def _recursive_collect_chapters(node_data, path_parts, out_list):
     """
     אוסף באופן רקורסיבי את כל הפרקים מצומת נתון ומתתי-הצמתים שלו.
@@ -420,8 +511,12 @@ def _recursive_collect_chapters(node_data, path_parts, out_list):
     book_name = " / ".join(path_parts)
     explicit_keys = sorted(
         # איסוף מפתחות שמתחילים ב "פרק " ומייצגים פרקים מפורשים
-        [k for k, v in node_data.items() if k.startswith("פרק ") and isinstance(v, dict)],
-        key=_hebrew_chapter_sort_key
+        [
+            k
+            for k, v in node_data.items()
+            if k.startswith("פרק ") and isinstance(v, dict)
+        ],
+        key=_hebrew_chapter_sort_key,
     )
     if explicit_keys:
         for chap_key in explicit_keys:
@@ -431,12 +526,15 @@ def _recursive_collect_chapters(node_data, path_parts, out_list):
         num_chaps = node_data["פרקים"]
         for i in range(1, num_chaps + 1):
             hebrew_num = _convert_int_to_hebrew_gematria(i)
-            out_list.append({"book_display_name": book_name, "chapter_name": f"פרק {hebrew_num}"})
-    
+            out_list.append(
+                {"book_display_name": book_name, "chapter_name": f"פרק {hebrew_num}"}
+            )
+
     # קריאה רקורסיבית לתתי-צמתים שאינם פרקים מפורשים
     for key, val in node_data.items():
         if isinstance(val, dict) and not key.startswith("פרק "):
             _recursive_collect_chapters(val, path_parts + [key], out_list)
+
 
 def _collect_all_chapters_for_selection(titles_list, tree_data):
     """
@@ -455,6 +553,7 @@ def _collect_all_chapters_for_selection(titles_list, tree_data):
         if node:
             _recursive_collect_chapters(node, path_parts, collected)
     return collected
+
 
 def _recursive_collect_units(node_data, path_parts, out_list, mode):
     """
@@ -475,26 +574,49 @@ def _recursive_collect_units(node_data, path_parts, out_list, mode):
         if "משניות" in node_data and isinstance(node_data["משניות"], int):
             for i in range(1, node_data["משניות"] + 1):
                 # הוספת משניות אם הצומת עצמו מגדיר מספר משניות
-                out_list.append({"book_display_name": full_path_str, "unit_type": "משנה", "unit_num_int": i})
-        elif any(k.startswith("פרק ") and isinstance(v, dict) for k, v in node_data.items()):
+                out_list.append(
+                    {
+                        "book_display_name": full_path_str,
+                        "unit_type": "משנה",
+                        "unit_num_int": i,
+                    }
+                )
+        elif any(
+            k.startswith("פרק ") and isinstance(v, dict) for k, v in node_data.items()
+        ):
             for k, v in node_data.items():
                 if k.startswith("פרק ") and isinstance(v, dict) and "משניות" in v:
                     for i in range(1, v["משניות"] + 1):
                         prk_name = full_path_str + " / " + k
-                        out_list.append({"book_display_name": prk_name, "unit_type": "משנה", "unit_num_int": i})
-    
+                        out_list.append(
+                            {
+                                "book_display_name": prk_name,
+                                "unit_type": "משנה",
+                                "unit_num_int": i,
+                            }
+                        )
+
     elif mode in ("דפים", "עמודים"):
-        if "אורך בדפים" in node_data and isinstance(node_data["אורך בדפים"], (int, float)):
-            start_page = node_data.get("עמוד ראשון", 2) # דף ברירת מחדל להתחלה הוא ב'
+        if "אורך בדפים" in node_data and isinstance(
+            node_data["אורך בדפים"], (int, float)
+        ):
+            start_page = node_data.get("עמוד ראשון", 2)  # דף ברירת מחדל להתחלה הוא ב'
             for i in range(int(node_data["אורך בדפים"])):
                 daf_num = start_page + i
                 # עבור "דפים" ו"עמודים", היחידה הבסיסית היא דף. "עמודים" יטופל בהמשך.
-                out_list.append({"book_display_name": full_path_str, "unit_type": "דף", "unit_num_int": daf_num})
-    
+                out_list.append(
+                    {
+                        "book_display_name": full_path_str,
+                        "unit_type": "דף",
+                        "unit_num_int": daf_num,
+                    }
+                )
+
     # קריאה רקורסיבית לתתי-צמתים שאינם פרקים מפורשים (עבור מבנים מקוננים)
     for key, val in node_data.items():
         if isinstance(val, dict) and not key.startswith("פרק "):
             _recursive_collect_units(val, path_parts + [key], out_list, mode)
+
 
 def _collect_all_units_for_selection(titles_list, tree_data, mode):
     """
@@ -517,6 +639,7 @@ def _collect_all_units_for_selection(titles_list, tree_data, mode):
             _recursive_collect_units(node, path_parts, collected, mode)
     return collected
 
+
 def find_exact_whole_branch(titles_list, tree_data):
     """
     בודק האם רשימת הפריטים שנבחרו מייצגת ענף שלם ומדויק בעץ הנתונים.
@@ -531,7 +654,7 @@ def find_exact_whole_branch(titles_list, tree_data):
     """
     if not titles_list:
         return None
-    split_paths = [title.split(" / ") for title in titles_list] # פיצול כל נתיב לחלקיו
+    split_paths = [title.split(" / ") for title in titles_list]  # פיצול כל נתיב לחלקיו
     common_path = []
     for level in zip(*split_paths):
         if len(set(level)) == 1:
@@ -551,12 +674,18 @@ def find_exact_whole_branch(titles_list, tree_data):
         if part in node:
             node = node[part]
         else:
-            return None # נתיב לא תקין
+            return None  # נתיב לא תקין
 
     # בדיקה האם כל הילדים של הצומת המשותף נבחרו
-    selected_last_parts = {p[len(common_path)] for p in split_paths if len(p) > len(common_path)}
+    selected_last_parts = {
+        p[len(common_path)] for p in split_paths if len(p) > len(common_path)
+    }
     # ילדים פוטנציאליים של הצומת (לא כולל "פרק X" כי הם לא נחשבים תתי-ענפים לבחירה)
-    all_children = {key for key, val in node.items() if isinstance(val, dict) and not key.startswith("פרק")}
+    all_children = {
+        key
+        for key, val in node.items()
+        if isinstance(val, dict) and not key.startswith("פרק")
+    }
 
     if selected_last_parts and selected_last_parts == all_children:
         # אם נבחרו חלקים נוספים והם בדיוק כל הילדים של הצומת המשותף
@@ -564,11 +693,14 @@ def find_exact_whole_branch(titles_list, tree_data):
     if not selected_last_parts:
         # אם לא נבחרו חלקים נוספים, זה אומר שהצומת המשותף עצמו נבחר (כעלה או כצומת אב יחיד)
         return " / ".join(common_path)
-    
+
     return None
 
-#==================== יוצר שם חכם ====================
-def generate_smart_filename(titles_list, mode, start_date, end_date, tree_data, extension, units_per_day=None):
+
+# ==================== יוצר שם חכם ====================
+def generate_smart_filename(
+    titles_list, mode, start_date, end_date, tree_data, extension, units_per_day=None
+):
     """
     יוצר שם קובץ חכם ואינפורמטיבי עבור קובץ הלימוד (ICS או HTML).
 
@@ -593,7 +725,7 @@ def generate_smart_filename(titles_list, mode, start_date, end_date, tree_data, 
     else:
         # אם נבחרו פריטים מרובים או חלקיים, נבנה שם מורכב יותר
         names = [t.split(" / ")[-1] for t in titles_list]
-        unique_names = list(dict.fromkeys(names)) # הסרת כפילויות בשמות
+        unique_names = list(dict.fromkeys(names))  # הסרת כפילויות בשמות
 
         if len(unique_names) == 1:
             title = f"{unique_names[0]} (חלקים)"
@@ -602,7 +734,7 @@ def generate_smart_filename(titles_list, mode, start_date, end_date, tree_data, 
         elif len(unique_names) >= 3:
             title = f"{unique_names[0]}, {unique_names[1]} ועוד"
         else:
-            title = "לימוד" # שם ברירת מחדל אם אין כותרות
+            title = "לימוד"  # שם ברירת מחדל אם אין כותרות
 
     # יצירת מחרוזת המתארת את משך הזמן או ההספק
     if units_per_day:
@@ -652,18 +784,19 @@ def generate_smart_filename(titles_list, mode, start_date, end_date, tree_data, 
     # הרכבת שם הקובץ הסופי
     return f"{title} {time_str}.{extension}"
 
+
 # ==================== מחשב לוח לימוד ====================
 def _generate_study_schedule(
-        start_date,
-        end_date,
-        titles_list,
-        mode,
-        tree_data,
-        no_study_weekdays,
-        units_per_day=None,
-        skip_holidays=False,
-        balance_chapters_by_mishnayot=False
-    ):
+    start_date,
+    end_date,
+    titles_list,
+    mode,
+    tree_data,
+    no_study_weekdays,
+    units_per_day=None,
+    skip_holidays=False,
+    balance_chapters_by_mishnayot=False,
+):
     """
     מייצר את לוח הלימודים המפורט יום אחר יום.
 
@@ -703,38 +836,46 @@ def _generate_study_schedule(
                     continue
                 hebrew_num = _convert_int_to_hebrew_gematria(unit_num)
                 if mode == "עמודים":
-                    processed_units.append({
-                        "book_display_name": book_name,
-                        "unit_type": "עמוד",
-                        "unit_display_name": f"{hebrew_num}.",
-                        "sort_key": unit_num * 2 - 1,  # עמוד א'
-                        "unit_num_int": unit_num,
-                        "side": "a",
-                    })
-                    processed_units.append({
-                        "book_display_name": book_name,
-                        "unit_type": "עמוד",
-                        "unit_display_name": f"{hebrew_num}:",
-                        "sort_key": unit_num * 2,  # עמוד ב'
-                        "unit_num_int": unit_num,
-                        "side": "b",
-                    })
+                    processed_units.append(
+                        {
+                            "book_display_name": book_name,
+                            "unit_type": "עמוד",
+                            "unit_display_name": f"{hebrew_num}.",
+                            "sort_key": unit_num * 2 - 1,  # עמוד א'
+                            "unit_num_int": unit_num,
+                            "side": "a",
+                        }
+                    )
+                    processed_units.append(
+                        {
+                            "book_display_name": book_name,
+                            "unit_type": "עמוד",
+                            "unit_display_name": f"{hebrew_num}:",
+                            "sort_key": unit_num * 2,  # עמוד ב'
+                            "unit_num_int": unit_num,
+                            "side": "b",
+                        }
+                    )
                 elif mode == "דפים":
-                    processed_units.append({
-                        "book_display_name": book_name,
-                        "unit_type": "דף",
-                        "unit_display_name": hebrew_num,
-                        "sort_key": unit_num,
-                        "unit_num_int": unit_num,
-                    })
+                    processed_units.append(
+                        {
+                            "book_display_name": book_name,
+                            "unit_type": "דף",
+                            "unit_display_name": hebrew_num,
+                            "sort_key": unit_num,
+                            "unit_num_int": unit_num,
+                        }
+                    )
                 elif mode == "משניות":
-                    processed_units.append({
-                        "book_display_name": book_name,
-                        "unit_type": "משנה",
-                        "unit_display_name": hebrew_num,
-                        "sort_key": unit_num,
-                        "unit_num_int": unit_num,
-                    })
+                    processed_units.append(
+                        {
+                            "book_display_name": book_name,
+                            "unit_type": "משנה",
+                            "unit_display_name": hebrew_num,
+                            "sort_key": unit_num,
+                            "unit_num_int": unit_num,
+                        }
+                    )
             # processed_units.sort(key=lambda x: (x["book_display_name"], x["sort_key"])) # מיון היחידות
             all_units = processed_units
 
@@ -748,7 +889,9 @@ def _generate_study_schedule(
 
     if units_per_day is None:
         # מצב רגיל: מחלקים לפי מספר ימי לימוד בפועל בין התאריכים
-        study_days_count = calculate_study_days(start_date, end_date, no_study_weekdays, skip_holidays)
+        study_days_count = calculate_study_days(
+            start_date, end_date, no_study_weekdays, skip_holidays
+        )
         if study_days_count == 0:
             return []
 
@@ -762,17 +905,30 @@ def _generate_study_schedule(
             total_length = sum(u.get("length", 1) for u in all_units)
             base_per_day = total_length // study_days_count
             remainder = total_length % study_days_count
-            allocations = [base_per_day + (1 if i < remainder else 0) for i in range(study_days_count)]
+            allocations = [
+                base_per_day + (1 if i < remainder else 0)
+                for i in range(study_days_count)
+            ]
 
             while current_date <= end_date and unit_idx < total_units:
-                if current_date.weekday() not in no_study_weekdays and not (skip_holidays and is_holiday(current_date)):
-                    target = allocations[day_idx] if day_idx < len(allocations) else base_per_day
+                if current_date.weekday() not in no_study_weekdays and not (
+                    skip_holidays and is_holiday(current_date)
+                ):
+                    target = (
+                        allocations[day_idx]
+                        if day_idx < len(allocations)
+                        else base_per_day
+                    )
                     todays_units = []
                     length_today = 0
                     while unit_idx < total_units:
                         chap = all_units[unit_idx]
                         chap_len = chap.get("length", 1)
-                        if todays_units and length_today + chap_len > target and day_idx < len(allocations) - 1:
+                        if (
+                            todays_units
+                            and length_today + chap_len > target
+                            and day_idx < len(allocations) - 1
+                        ):
                             break
                         todays_units.append(chap)
                         length_today += chap_len
@@ -781,57 +937,71 @@ def _generate_study_schedule(
                             break
                     first_unit, last_unit = todays_units[0], todays_units[-1]
                     desc = build_description(first_unit, last_unit, mode)
-                    schedule.append({
-                        "date": current_date,
-                        "description": desc,
-                        "first_unit": first_unit,
-                        "last_unit": last_unit,
-                        "units": todays_units,
-                    })
-                    day_idx += 1
-                current_date += timedelta(days=1)
-        else:
-            base_per_day = total_units // study_days_count
-            remainder = total_units % study_days_count  # יחידות עודפות לחלוקה
-            allocations = [base_per_day + (1 if i < remainder else 0) for i in range(study_days_count)]
-
-            while current_date <= end_date and unit_idx < total_units:
-                # לולאה על כל יום בטווח התאריכים
-                if current_date.weekday() not in no_study_weekdays and not (skip_holidays and is_holiday(current_date)):
-                    num_today = allocations[day_idx]
-                    if num_today > 0:
-                        todays_units = all_units[unit_idx:unit_idx + num_today]
-                        first_unit, last_unit = todays_units[0], todays_units[-1]
-                        desc = build_description(first_unit, last_unit, mode)
-                        schedule.append({
+                    schedule.append(
+                        {
                             "date": current_date,
                             "description": desc,
                             "first_unit": first_unit,
                             "last_unit": last_unit,
                             "units": todays_units,
-                        })
+                        }
+                    )
+                    day_idx += 1
+                current_date += timedelta(days=1)
+        else:
+            base_per_day = total_units // study_days_count
+            remainder = total_units % study_days_count  # יחידות עודפות לחלוקה
+            allocations = [
+                base_per_day + (1 if i < remainder else 0)
+                for i in range(study_days_count)
+            ]
+
+            while current_date <= end_date and unit_idx < total_units:
+                # לולאה על כל יום בטווח התאריכים
+                if current_date.weekday() not in no_study_weekdays and not (
+                    skip_holidays and is_holiday(current_date)
+                ):
+                    num_today = allocations[day_idx]
+                    if num_today > 0:
+                        todays_units = all_units[unit_idx : unit_idx + num_today]
+                        first_unit, last_unit = todays_units[0], todays_units[-1]
+                        desc = build_description(first_unit, last_unit, mode)
+                        schedule.append(
+                            {
+                                "date": current_date,
+                                "description": desc,
+                                "first_unit": first_unit,
+                                "last_unit": last_unit,
+                                "units": todays_units,
+                            }
+                        )
                         unit_idx += num_today
                     day_idx += 1  # קדם אינדקס יום לימוד
                 current_date += timedelta(days=1)
     else:
         # מצב הספק יומי קבוע
         while unit_idx < total_units:
-            if current_date.weekday() not in no_study_weekdays and not (skip_holidays and is_holiday(current_date)):
+            if current_date.weekday() not in no_study_weekdays and not (
+                skip_holidays and is_holiday(current_date)
+            ):
                 # לוקחים units_per_day יחידות או פחות אם זה סוף הרשימה
-                todays_units = all_units[unit_idx:unit_idx + units_per_day]
+                todays_units = all_units[unit_idx : unit_idx + units_per_day]
                 first_unit, last_unit = todays_units[0], todays_units[-1]
                 desc = build_description(first_unit, last_unit, mode)
-                schedule.append({
-                    "date": current_date,
-                    "description": desc,
-                    "first_unit": first_unit,
-                    "last_unit": last_unit,
-                    "units": todays_units,
-                })
+                schedule.append(
+                    {
+                        "date": current_date,
+                        "description": desc,
+                        "first_unit": first_unit,
+                        "last_unit": last_unit,
+                        "units": todays_units,
+                    }
+                )
                 unit_idx += len(todays_units)
             current_date += timedelta(days=1)
 
     return schedule
+
 
 # פונקציה עזר משותפת לבניית התיאור
 def build_description(first_unit, last_unit, mode):
@@ -862,7 +1032,9 @@ def build_description(first_unit, last_unit, mode):
             desc = f"מ-{first_unit['book_display_name']} {first_unit['unit_type']} {first_unit['unit_display_name']} עד {last_unit['book_display_name']} {last_unit['unit_type']} {last_unit['unit_display_name']}"
     return desc
 
+
 TORAH_TREE_CACHE = None
+
 
 def _load_torah_tree():
     """Load and cache the main Torah tree data used for book lengths."""
@@ -872,7 +1044,10 @@ def _load_torah_tree():
             TORAH_TREE_CACHE = json.load(f)
     return TORAH_TREE_CACHE
 
-def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | list[str] | None:
+
+def build_sefaria_ref(
+    first_unit: dict, last_unit: dict, mode: str
+) -> str | list[str] | None:
     """Construct Sefaria reference(s).
 
     ``mode`` indicates the unit granularity (פרקים/משניות/דפים/עמודים) only.
@@ -961,9 +1136,7 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | lis
             ch_keys = [k for k in first_node if k.startswith("פרק ")]
             if not ch_keys:
                 return None
-            last_ch_num = max(
-                Gematria.gematria_to_int(k.split()[-1]) for k in ch_keys
-            )
+            last_ch_num = max(Gematria.gematria_to_int(k.split()[-1]) for k in ch_keys)
             end_ch_name = _convert_int_to_hebrew_gematria(last_ch_num)
             last_ch_node = first_node.get(f"פרק {end_ch_name}")
             if not isinstance(last_ch_node, dict) or "משניות" not in last_ch_node:
@@ -1016,7 +1189,9 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | lis
             start_second = "2a"
             end_second = f"{e_d}{e_side}"
             ref2 = (
-                f"{book2}.{start_second}-{end_second}" if end_second != start_second else f"{book2}.{start_second}"
+                f"{book2}.{start_second}-{end_second}"
+                if end_second != start_second
+                else f"{book2}.{start_second}"
             )
             return [ref1, ref2]
 
@@ -1026,7 +1201,7 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | lis
         if not s or not e:
             return None
         ref = f"{book}.{s}" if s == e else f"{book}.{s}-{e}"
-        return ref 
+        return ref
 
     if mode == "משניות":
         s_m, e_m = first_unit.get("unit_num_int"), last_unit.get("unit_num_int")
@@ -1038,14 +1213,14 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | lis
             if ech is None:
                 return None
             ref = f"{book}.{sch}.{s_m}-{ech}.{e_m}"
-        return ref 
+        return ref
 
     if mode == "דפים":
         s_d, e_d = first_unit.get("unit_num_int"), last_unit.get("unit_num_int")
         if s_d is None or e_d is None:
             return None
         ref = f"{book}.{s_d}a" if s_d == e_d else f"{book}.{s_d}a-{e_d}b"
-        return ref 
+        return ref
 
     if mode == "עמודים":
         s_d, e_d = first_unit.get("unit_num_int"), last_unit.get("unit_num_int")
@@ -1055,9 +1230,10 @@ def build_sefaria_ref(first_unit: dict, last_unit: dict, mode: str) -> str | lis
         start = f"{s_d}{s_side}"
         end = f"{e_d}{e_side}"
         ref = f"{book}.{start}" if start == end else f"{book}.{start}-{end}"
-        return ref 
+        return ref
 
     return None
+
 
 # ==================== יצירת ICS ====================
 def write_ics_file(
@@ -1112,10 +1288,10 @@ def write_ics_file(
         return None
 
     actual_end_date = schedule[-1]["date"] if units_per_day else end_date
-    cal = Calendar() # יצירת אובייקט לוח שנה
+    cal = Calendar()  # יצירת אובייקט לוח שנה
 
     # קביעת שם בסיסי לאירוע
-    first_title = titles_list[0].split(' / ')[-1] if titles_list else "לימוד"
+    first_title = titles_list[0].split(" / ")[-1] if titles_list else "לימוד"
     event_base_name = f"סדר לימוד: {first_title}"
     if len(titles_list) > 1:
         event_base_name += " ועוד"
@@ -1125,35 +1301,38 @@ def write_ics_file(
         links = []
         if ref:
             if isinstance(ref, list):
-                links = [link_template.format(ref=quote(r, safe='.-_%')) for r in ref]
+                links = [link_template.format(ref=quote(r, safe=".-_%")) for r in ref]
             else:
-                links = [link_template.format(ref=quote(ref, safe='.-_%'))]
+                links = [link_template.format(ref=quote(ref, safe=".-_%"))]
         e = Event()
         e.name = event_base_name
-        e.begin = day_data['date'].strftime('%Y-%m-%d')
+        e.begin = day_data["date"].strftime("%Y-%m-%d")
         e.make_all_day()
         if alarm_time:
-            alarm_dt = datetime.combine(day_data['date'], alarm_time)
+            alarm_dt = datetime.combine(day_data["date"], alarm_time)
             e.alarms = [DisplayAlarm(trigger=alarm_dt)]
         if links:
-            e.description = day_data['description'] + "\n" + "\n".join(links)
+            e.description = day_data["description"] + "\n" + "\n".join(links)
             e.url = links[0]
         else:
-            e.description = day_data['description']
+            e.description = day_data["description"]
         cal.events.add(e)
 
     # יצירת שם קובץ חכם
-    filename = generate_smart_filename(titles_list, mode, start_date, actual_end_date, tree_data, "ics", units_per_day)
+    filename = generate_smart_filename(
+        titles_list, mode, start_date, actual_end_date, tree_data, "ics", units_per_day
+    )
     full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
     # כתיבת הקובץ
     try:
-        with open(full_path, 'w', encoding='utf-8') as f:
+        with open(full_path, "w", encoding="utf-8") as f:
             f.writelines(cal)
         print(f"קובץ ICS נוצר בהצלחה: {full_path}")
         return full_path
     except Exception as e:
         print(f"שגיאה בכתיבת קובץ ICS: {e}")
         return None
+
 
 def write_bookmark_html(
     titles_list,
@@ -1212,9 +1391,9 @@ def write_bookmark_html(
         orig_link = ""
         if orig_ref:
             if isinstance(orig_ref, list):
-                orig_link = link_template.format(ref=quote(orig_ref[0], safe='.-_%'))
+                orig_link = link_template.format(ref=quote(orig_ref[0], safe=".-_%"))
             else:
-                orig_link = link_template.format(ref=quote(orig_ref, safe='.-_%'))
+                orig_link = link_template.format(ref=quote(orig_ref, safe=".-_%"))
 
         unit_links = []
         for unit in item.get("units", []):
@@ -1222,10 +1401,10 @@ def write_bookmark_html(
             if ref:
                 if isinstance(ref, list):
                     unit_links.extend(
-                        [link_template.format(ref=quote(r, safe='.-_%')) for r in ref]
+                        [link_template.format(ref=quote(r, safe=".-_%")) for r in ref]
                     )
                 else:
-                    unit_links.append(link_template.format(ref=quote(ref, safe='.-_%')))
+                    unit_links.append(link_template.format(ref=quote(ref, safe=".-_%")))
 
         study_map[item["date"]] = {
             "desc": item["description"],
@@ -1246,14 +1425,31 @@ def write_bookmark_html(
         cur += timedelta(days=1)
 
     # סדר עברי של חודשים
-    HEB_MONTH_ORDER = {7: 1, 8: 2, 9: 3, 10: 4, 11: 5, 12: 6, 13: 7, 1: 8, 2: 9, 3: 10, 4: 11, 5: 12, 6: 13}
-    sorted_keys = sorted(day_map.keys(), key=lambda x: (x[0], HEB_MONTH_ORDER.get(x[1], x[1])))
-
+    HEB_MONTH_ORDER = {
+        7: 1,
+        8: 2,
+        9: 3,
+        10: 4,
+        11: 5,
+        12: 6,
+        13: 7,
+        1: 8,
+        2: 9,
+        3: 10,
+        4: 11,
+        5: 12,
+        6: 13,
+    }
+    sorted_keys = sorted(
+        day_map.keys(), key=lambda x: (x[0], HEB_MONTH_ORDER.get(x[1], x[1]))
+    )
 
     monthly_schedule = []
-    for (h_year, h_month) in sorted_keys:
+    for h_year, h_month in sorted_keys:
         month_name_he = hebrewcal.Month(h_year, h_month).month_name(True)
-        year_str = dates.HebrewDate(h_year, h_month, 1).hebrew_date_string(True).split()[-1]
+        year_str = (
+            dates.HebrewDate(h_year, h_month, 1).hebrew_date_string(True).split()[-1]
+        )
         month_data = {"month_name": f"{month_name_he} {year_str}", "weeks": []}
         days = sorted(day_map[(h_year, h_month)])
         # בניית מבנה שבועות עבור כל חודש
@@ -1270,9 +1466,11 @@ def write_bookmark_html(
                 week = []
                 for i in range(7):
                     current_day = current_week_start + timedelta(days=i)
-                    g_date = dates.GregorianDate(current_day.year, current_day.month, current_day.day)
+                    g_date = dates.GregorianDate(
+                        current_day.year, current_day.month, current_day.day
+                    )
                     h_d = g_date.to_heb()
-                    is_in_month = (h_d.year == h_year and h_d.month == h_month)
+                    is_in_month = h_d.year == h_year and h_d.month == h_month
                     hebrew_day_number = h_d.hebrew_day() if is_in_month else ""
                     hebrew_date = h_d.hebrew_date_string(True) if is_in_month else ""
 
@@ -1283,39 +1481,67 @@ def write_bookmark_html(
                         if regular_holiday:
                             holiday_parts.append(regular_holiday)
                         # קריאה נכונה לפונקציה עם שני הארגומנטים הנדרשים
-                        national_holiday = get_israeli_national_holiday_on_gregorian_date(current_day, h_year)
+                        national_holiday = (
+                            get_israeli_national_holiday_on_gregorian_date(
+                                current_day, h_year
+                            )
+                        )
                         if national_holiday:
                             holiday_parts.append(national_holiday)
                     holiday = ", ".join(holiday_parts) if holiday_parts else ""
 
-                    parsha = parshios.getparsha_string(g_date, hebrew=True, israel=True) if current_day.weekday() == 5 and is_in_month else None
+                    parsha = (
+                        parshios.getparsha_string(g_date, hebrew=True, israel=True)
+                        if current_day.weekday() == 5 and is_in_month
+                        else None
+                    )
                     label = holiday or parsha or ""
                     study_info = study_map.get(current_day)
-                    week.append({
-                        "is_in_month": is_in_month,
-                        "hebrew_date": hebrew_date,
-                        "hebrew_day_number": hebrew_day_number,
-                        "label": label,
-                        "study_portion": study_info["desc"] if is_in_month and study_info else "",
-                        "links": study_info["links"] if is_in_month and study_info else [],
-                        "orig_link": study_info["orig_link"] if is_in_month and study_info else "",
-                        "category": study_info["category"] if is_in_month and study_info else "",
-                        "is_shabbat": current_day.weekday() == 5 if is_in_month else False,
-                        "is_holiday": bool(holiday) if is_in_month else False
-                    })
+                    week.append(
+                        {
+                            "is_in_month": is_in_month,
+                            "hebrew_date": hebrew_date,
+                            "hebrew_day_number": hebrew_day_number,
+                            "label": label,
+                            "study_portion": (
+                                study_info["desc"] if is_in_month and study_info else ""
+                            ),
+                            "links": (
+                                study_info["links"]
+                                if is_in_month and study_info
+                                else []
+                            ),
+                            "orig_link": (
+                                study_info["orig_link"]
+                                if is_in_month and study_info
+                                else ""
+                            ),
+                            "category": (
+                                study_info["category"]
+                                if is_in_month and study_info
+                                else ""
+                            ),
+                            "is_shabbat": (
+                                current_day.weekday() == 5 if is_in_month else False
+                            ),
+                            "is_holiday": bool(holiday) if is_in_month else False,
+                        }
+                    )
                 month_data["weeks"].append(week)
                 current_week_start += timedelta(weeks=1)
         monthly_schedule.append(month_data)
 
     # טעינת תבנית HTML ורינדור
     env = Environment(loader=FileSystemLoader(os.getcwd()))
-    tpl = env.get_template('bookmark_template.html')
-    filename = generate_smart_filename(titles_list, mode, start_date, actual_end_date, tree_data, "html", units_per_day)
+    tpl = env.get_template("bookmark_template.html")
+    filename = generate_smart_filename(
+        titles_list, mode, start_date, actual_end_date, tree_data, "html", units_per_day
+    )
     html = tpl.render(
-        title=filename.replace('.html', ''),
+        title=filename.replace(".html", ""),
         date_range=f"{start_date:%d/%m/%Y} - {actual_end_date:%d/%m/%Y}",
         monthly_schedule=monthly_schedule,
-        heb_weekday_names=HEBREW_WEEKDAY_NAMES # הוספת שמות ימות השבוע לתבנית
+        heb_weekday_names=HEBREW_WEEKDAY_NAMES,  # הוספת שמות ימות השבוע לתבנית
     )
     # שמירת קובץ ה-HTML
     out = os.path.join(os.getcwd(), filename)
@@ -1323,14 +1549,90 @@ def write_bookmark_html(
         f.write(html)
     return out
 
-# ==================== שימוש לדוגמה ====================
-if __name__ == '__main__':
+
+def write_bookmark_pdf(
+    titles_list,
+    mode,
+    start_date,
+    end_date,
+    tree_data,
+    no_study_weekdays_set,
+    units_per_day=None,
+    skip_holidays=False,
+    link_template: str = DEFAULT_LESSON_LINK,
+    balance_chapters_by_mishnayot: bool = False,
+):
+    """Create a PDF bookmark file from the study schedule using ``pyppeteer``.
+
+    The schedule HTML is first generated via :func:`write_bookmark_html` and
+    then rendered to PDF by ``pyppeteer`` using an existing Chrome/Chromium
+    installation.
+
+    Returns the path to the created PDF file or ``None`` if generation failed.
+    """
+
+    html_path = write_bookmark_html(
+        titles_list,
+        mode,
+        start_date,
+        end_date,
+        tree_data,
+        no_study_weekdays_set,
+        units_per_day=units_per_day,
+        skip_holidays=skip_holidays,
+        link_template=link_template,
+        balance_chapters_by_mishnayot=balance_chapters_by_mishnayot,
+    )
+
+    if not html_path:
+        return None
+
+    pdf_path = html_path.replace(".html", ".pdf")
+
+    async def _convert():
+        import os
+        import shutil
+        from pyppeteer import launch
+
+        os.environ.setdefault("PYPPETEER_SKIP_CHROMIUM_DOWNLOAD", "1")
+        exe_path = (
+            os.environ.get("CHROME_PATH")
+            or shutil.which("chromium-browser")
+            or shutil.which("google-chrome")
+            or shutil.which("chromium")
+            or shutil.which("chrome")
+        )
+        if not exe_path:
+            raise RuntimeError("Chrome/Chromium not found")
+
+        browser = await launch(
+            executablePath=exe_path, headless=True, args=["--no-sandbox"]
+        )
+        page = await browser.newPage()
+        await page.goto(f"file://{html_path}")
+        await page.pdf({"path": pdf_path, "printBackground": True})
+        await browser.close()
+
     try:
-        tree_data = load_data('tanakh.json')
+        import asyncio
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_convert())
+        return pdf_path
+    except Exception as e:
+        print(f"שגיאה ביצירת קובץ PDF: {e}")
+        return None
+
+
+# ==================== שימוש לדוגמה ====================
+if __name__ == "__main__":
+    try:
+        tree_data = load_data("tanakh.json")
     except FileNotFoundError:
         print("שגיאה: קובץ הנתונים tanakh.json לא נמצא. לא ניתן להמשיך.")
         exit()
-    titles_to_study = ["תנ\"ך / כתובים / תהילים"]
+    titles_to_study = ['תנ"ך / כתובים / תהילים']
     study_mode = "פרקים"  # אפשר: "פרקים", "משניות", "דפים", "עמודים"
     start = date(2025, 9, 1)
     end = date(2025, 11, 30)
@@ -1342,7 +1644,7 @@ if __name__ == '__main__':
         end_date=end,
         tree_data=tree_data,
         no_study_weekdays_set=example_no_study_days,
-        skip_holidays=False
+        skip_holidays=False,
     )
     print("-" * 20)
     write_bookmark_html(
@@ -1352,5 +1654,5 @@ if __name__ == '__main__':
         end_date=end,
         tree_data=tree_data,
         no_study_weekdays_set=example_no_study_days,
-        skip_holidays=False
+        skip_holidays=False,
     )
