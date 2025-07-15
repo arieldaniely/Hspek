@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>סימניית לימוד - {{ title }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+body, table, th, td, .settings-panel, .settings-btn, .modal-content {
+  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease;
+}
+.toggle-slider,
+.settings-panel button,
+.study-link,
+.nav-btn {
+  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease;
+}
+
+    :root {
+      --bg-color: #f4f6fa;
+      --text-color: #333;
+      --card-bg: #ffffff;
+      --header-bg: #dfe8f2;
+      --header-text: #2f4050;
+      --border-color: #e0e6ef;
+      --shabbat-bg: linear-gradient(135deg, #fff6ec, #ffe1b5);
+      --shabbat-text: #7a4b00;
+      --holiday-bg: linear-gradient(135deg, #fff0f4, #ffcadd);
+      --holiday-text: #89193c;
+    }
+
+    body.dark {
+      --bg-color: #1e1e1e;
+      --text-color: #f0f0f0;
+      --card-bg: #2a2a2a;
+      --header-bg: #444;
+      --header-text: #eee;
+      --border-color: #555;
+      --shabbat-bg: linear-gradient(135deg, #5b3c00, #b27900);
+      --shabbat-text: #fff;
+      --holiday-bg: linear-gradient(135deg, #64032f, #d63280);
+      --holiday-text: #fff;
+    }
+
+    body {
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Assistant', sans-serif;
+      margin: 0;
+      padding: 0 6vw;
+    }
+
+    h1, h2 {
+      text-align: center;
+      color: var(--header-text);
+    }
+    h1 { font-size: 2em; margin-top: 1em; }
+    h2 { font-size: 1.3em; margin-top: 1.4em; }
+    p { text-align: center; margin-bottom: 1em; }
+
+    .settings-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--border-color);
+      background: var(--header-bg);
+      color: var(--header-text);
+      cursor: pointer;
+      font-size: 1.2em;
+      z-index: 1001;
+      transition: transform 0.3s;
+    }
+
+    .settings-btn.rotated {
+      transform: rotate(-90deg);
+    }
+
+    .settings-panel {
+      position: fixed;
+      top: 60px;
+      right: 10px;
+      width: 260px;
+      background: var(--card-bg);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 1001;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-15px);
+      transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s;
+    }
+
+    .settings-panel.visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .settings-panel h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      font-size: 1.2em;
+    }
+
+    .settings-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .settings-panel label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .settings-panel input[type="text"] {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-family: inherit;
+    }
+
+    .settings-panel button {
+      background: var(--header-bg);
+      color: var(--header-text);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      margin-bottom: 8px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      border-radius: 22px;
+      transition: background-color 0.2s;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: #3498db;
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(18px);
+    }
+
+    .settings-close-btn {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      background: none;
+      border: none;
+      font-size: 1.2em;
+      cursor: pointer;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: var(--card-bg);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 2px 14px rgba(0, 0, 0, 0.08);
+      margin-bottom: 30px;
+      table-layout: fixed;
+    }
+
+    th, td {
+      height: 90px;
+      padding: 10px;
+      text-align: center;
+      vertical-align: top;
+      border: 1px solid var(--border-color);
+      box-sizing: border-box;
+      word-wrap: break-word;
+    }
+
+    th {
+      background: var(--header-bg);
+      color: var(--header-text);
+      font-weight: bold;
+    }
+
+    td {
+      background: var(--card-bg);
+      border-radius: 12px;
+    }
+    td.has-link {
+      padding: 0;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    td:hover { background: #eef8ff; }
+    .not-in-month { background-color: #f0f2f5; color: #aaa; }
+    .day-number { font-weight: bold; color: #2980b9; }
+    .label { font-weight: bold; color: #c0392b; }
+    .study { color: #27ae60; margin-top: 4px; }
+    .study-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      height: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .multi-link-container { display: none; }
+
+    .shabbat {
+      background: var(--shabbat-bg) !important;
+      color: var(--shabbat-text) !important;
+    }
+
+    .holiday {
+      background: var(--holiday-bg) !important;
+      color: var(--holiday-text) !important;
+      border: 2px solid #f6a5b4;
+    }
+    
+    .shabbat.holiday {
+      background: linear-gradient(135deg, #ffe8f5 60%, #ffe4bd 100%) !important;
+      color: #fff !important;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      display: none; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal-content {
+      background: var(--card-bg); color: var(--text-color);
+      padding: 25px; border-radius: 15px;
+      width: 90%; max-width: 800px; max-height: 90vh;
+      overflow-y: auto; position: relative;
+    }
+    .modal-close-btn {
+      position: absolute; top: 15px; right: 15px;
+      background: none; border: none; font-size: 2rem; cursor: pointer;
+    }
+    .modal-body { padding-top: 30px; }
+    .modal-footer {
+      text-align: center; margin-top: 25px; padding-top: 15px;
+      border-top: 1px solid var(--border-color);
+    }
+    .sefaria-btn {
+      padding: 10px 20px;
+      background: var(--header-bg); color: var(--header-text);
+      border: 1px solid var(--border-color);
+      border-radius: 8px; text-decoration: none;
+    }
+
+    .nav-arrows {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 10px;
+      gap: 10px;
+    }
+    .nav-btn {
+      width: 40px;
+      height: 40px;
+      background: var(--header-bg);
+      color: var(--header-text);
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3em;
+      cursor: pointer;
+      transition: transform 0.2s, background-color 0.2s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      transform: scale(1.1);
+      background: var(--border-color);
+    }
+    .nav-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    @font-face {
+      font-family: 'Taamey Frank';
+      src: url('https://www.sefaria.org.il/static/fonts/Taamey-Frank/Taamey%20Frank.ttf') format('truetype');
+      font-display: swap;
+    }
+
+    .dibur {
+      font-weight: bold;
+      color: #c0392b;
+    }
+
+    .source-text, .comment-text {
+      font-family: 'Taamey Frank', 'Times New Roman', serif;
+      font-size: 1.3em;
+      line-height: 1.8;
+    }
+    .commentary-item { margin-bottom: 20px; }
+    .commentator-name { font-weight: bold; color: var(--shabbat-text); }
+
+    @media (max-width: 768px) {
+      th, td { font-size: 0.9em; height: 70px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>{{ title }}</h1>
+  <p>תאריכים: {{ date_range }}</p>
+
+  {% for month_data in monthly_schedule %}
+    <h2>{{ month_data.month_name }}</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ראשון</th><th>שני</th><th>שלישי</th><th>רביעי</th><th>חמישי</th><th>שישי</th><th>שבת</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in month_data.weeks %}
+          <tr>
+            {% for day in week %}
+                {% if day.orig_link %}
+                <td class="{{ ' '.join(cls) }}">
+                <a href="{{ day.orig_link }}" class="study-link">
+                    <div class="day-number">{{ day.hebrew_day_number }}</div>
+                    {% if day.label %}<div class="label">{{ day.label }}</div>{% endif %}
+                    {% if day.study_portion %}
+                    <div class="study">{{ day.study_portion }}</div>
+                    {% endif %}
+                </a>
+                </td>
+                {% else %}
+                <td class="{{ ' '.join(cls) }}">
+                <div class="day-number">{{ day.hebrew_day_number }}</div>
+                {% if day.label %}<div class="label">{{ day.label }}</div>{% endif %}
+                {% if day.study_portion %}
+                    <div class="study">{{ day.study_portion }}</div>
+                {% endif %}
+                </td>
+                {% endif %}
+
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endfor %}
+</body>
+</html>
