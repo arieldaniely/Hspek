@@ -2,6 +2,7 @@ from datetime import date, timedelta, datetime, time
 from ics import Calendar, Event, DisplayAlarm
 import json
 import os
+import sys
 import re
 from urllib.parse import quote_plus, quote
 
@@ -12,6 +13,12 @@ from collections import defaultdict
 # כתובת ברירת מחדל לפתיחת חומר הלימוד היומי
 # {ref} מוחלף בהפניה המדויקת בספריא (לדוגמה "בראשית.א-ב")
 DEFAULT_LESSON_LINK = "https://www.sefaria.org.il/he/{ref}"
+
+def resource_path(filename):
+    """החזרת נתיב לקובץ – עובד גם בפיתוח וגם בתוך EXE"""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, filename)
+    return os.path.join(os.path.abspath("."), filename)
 
 
 # זיהוי קטגוריית התוכן (תנ"ך, משנה או תלמוד) לפי הנתיב המלא של היחידה
@@ -327,7 +334,7 @@ def load_data(path):
     Returns:
         dict: מילון המכיל את נתוני ה-JSON, או None אם הקובץ לא נמצא או שיש שגיאה בטעינה.
     """
-    with open(path, encoding="utf-8") as f:
+    with open(resource_path(path), encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -1040,7 +1047,7 @@ def _load_torah_tree():
     """Load and cache the main Torah tree data used for book lengths."""
     global TORAH_TREE_CACHE
     if TORAH_TREE_CACHE is None:
-        with open("torah_tree_data_full.json", "r", encoding="utf-8") as f:
+        with open(resource_path("torah_tree_data_full.json"), "r", encoding="utf-8") as f:
             TORAH_TREE_CACHE = json.load(f)
     return TORAH_TREE_CACHE
 
@@ -1055,7 +1062,7 @@ def build_sefaria_ref(
     ``first_unit``.  When the portion spans two different books, two references
     are returned.
     """
-    with open("sefaria_masechet_map.json", "r", encoding="utf-8") as f:
+    with open(resource_path("sefaria_masechet_map.json"), "r", encoding="utf-8") as f:
         SEFARIA_MASECHET_MAP = json.load(f)
 
     def extract(unit):
@@ -1325,7 +1332,7 @@ def write_ics_file(
     full_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
     # כתיבת הקובץ
     try:
-        with open(full_path, "w", encoding="utf-8") as f:
+        with open(resource_path(full_path), "w", encoding="utf-8") as f:
             f.writelines(cal)
         print(f"קובץ ICS נוצר בהצלחה: {full_path}")
         return full_path
@@ -1345,7 +1352,9 @@ def write_bookmark_html(
     skip_holidays=False,
     link_template: str = DEFAULT_LESSON_LINK,
     balance_chapters_by_mishnayot: bool = False,
+    pdf_mode: bool = False,  # ← הוספה
 ):
+
     """
     יוצר קובץ HTML (דף סימנייה) המציג את לוח הלימודים בצורה חודשית.
 
@@ -1533,7 +1542,8 @@ def write_bookmark_html(
 
     # טעינת תבנית HTML ורינדור
     env = Environment(loader=FileSystemLoader(os.getcwd()))
-    tpl = env.get_template("bookmark_template.html")
+    template_name = "bookmark_template_pdf.html" if pdf_mode else "bookmark_template.html"
+    tpl = env.get_template(template_name)
     filename = generate_smart_filename(
         titles_list, mode, start_date, actual_end_date, tree_data, "html", units_per_day
     )
@@ -1545,10 +1555,9 @@ def write_bookmark_html(
     )
     # שמירת קובץ ה-HTML
     out = os.path.join(os.getcwd(), filename)
-    with open(out, "w", encoding="utf-8") as f:
+    with open(resource_path(out), "w", encoding="utf-8") as f:
         f.write(html)
     return out
-
 
 def write_bookmark_pdf(
     titles_list,
@@ -1582,6 +1591,7 @@ def write_bookmark_pdf(
         skip_holidays=skip_holidays,
         link_template=link_template,
         balance_chapters_by_mishnayot=balance_chapters_by_mishnayot,
+        pdf_mode=True
     )
 
     if not html_path:
@@ -1595,15 +1605,20 @@ def write_bookmark_pdf(
         from pyppeteer import launch
 
         os.environ.setdefault("PYPPETEER_SKIP_CHROMIUM_DOWNLOAD", "1")
+
+        # חיפוש Chrome מותקן, כולל נתיב ברירת מחדל
         exe_path = (
             os.environ.get("CHROME_PATH")
             or shutil.which("chromium-browser")
             or shutil.which("google-chrome")
             or shutil.which("chromium")
             or shutil.which("chrome")
+            #or "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+            or "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"  # ← הנתיב הנכון עבורך
         )
-        if not exe_path:
-            raise RuntimeError("Chrome/Chromium not found")
+
+        if not exe_path or not os.path.exists(exe_path):
+            raise RuntimeError(f"Chrome/Chromium not found at: {exe_path}")
 
         browser = await launch(
             executablePath=exe_path, headless=True, args=["--no-sandbox"]
