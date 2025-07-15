@@ -3,4 +3,4 @@ pyluach
 jinja2
 customtkinter
 tkcalendar
-reportlab
+pyppeteer

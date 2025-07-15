@@ -1,7 +1,9 @@
-import os
 from datetime import date
 from pathlib import Path
 from test_torah_tree import load_module
+import shutil
+import os
+import pytest
 
 
 def test_write_bookmark_pdf(tmp_path):
@@ -19,6 +21,16 @@ def test_write_bookmark_pdf(tmp_path):
     tpl_src = repo_root / "bookmark_template.html"
     if tpl_src.exists():
         Path(tmp_path / "bookmark_template.html").write_bytes(tpl_src.read_bytes())
+    # Skip if no Chromium/Chrome is available
+    if not (
+        os.environ.get("CHROME_PATH")
+        or shutil.which("chromium-browser")
+        or shutil.which("google-chrome")
+        or shutil.which("chromium")
+        or shutil.which("chrome")
+    ):
+        pytest.skip("Chrome/Chromium not available")
+
     pdf_path = module.write_bookmark_pdf(
         titles_list=["t"],
         mode="פרקים",
