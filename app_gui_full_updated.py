@@ -9,6 +9,7 @@ from datetime import date, timedelta, datetime
 import math
 import locale
 import os
+import sys
 import webbrowser
 from pyluach import dates, hebrewcal
 
@@ -35,6 +36,12 @@ ctk.set_appearance_mode("system")  # הגדרת ערכת נושא בהתאם ל�
 ctk.set_default_color_theme("blue") # הגדרת צבע ברירת מחדל
 
 DEFAULT_FILE = "torah_tree_data_full.json" # קובץ נתונים ברירת מחדל
+
+def resource_path(filename):
+    """החזרת נתיב לקובץ – עובד גם בפיתוח וגם בתוך EXE"""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, filename)
+    return os.path.join(os.path.abspath("."), filename)
 
 # ==============================================================================
 #                                 מחלקת האפליקציה הראשית
@@ -245,8 +252,8 @@ class TorahTreeApp(ctk.CTk):
         # MAIN FRAME
         main_frame = ctk.CTkFrame(self, fg_color="#f8fafc")
         main_frame.pack(fill="both", expand=True, padx=10, pady=5)
-        main_frame.grid_columnconfigure(0, weight=3)
-        main_frame.grid_columnconfigure(1, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1, uniform="half")
+        main_frame.grid_columnconfigure(1, weight=1, uniform="half")
         main_frame.grid_rowconfigure(0, weight=1)
 
         # מסגרת עץ התצוגה (Tree Frame)
@@ -280,7 +287,7 @@ class TorahTreeApp(ctk.CTk):
         self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
 
         # לוח בקרה (Control Panel) - מימין לעץ
-        ctrl_frame = ctk.CTkFrame(main_frame, fg_color="#f0f8ff", corner_radius=18)
+        ctrl_frame = ctk.CTkScrollableFrame(main_frame, fg_color="#f0f8ff", corner_radius=18)
         ctrl_frame.grid(row=0, column=1, sticky="nsew", padx=(0,2), pady=5)
         ctrl_frame.grid_columnconfigure(0, weight=1)
 
@@ -520,19 +527,19 @@ class TorahTreeApp(ctk.CTk):
         ctk.CTkLabel(self.settings_window, text="שעת התראה (HH:MM):").pack(pady=(40,0))
         ctk.CTkEntry(self.settings_window, textvariable=self.alarm_time_var).pack(fill="x", padx=10, pady=6)
 
-        ctk.CTkCheckBox(
+        ctk.CTkSwitch(
             self.settings_window,
             text="דלג על חגים",
             variable=self.skip_holidays_var
         ).pack(anchor="w", padx=10, pady=(0,6))
 
-        ctk.CTkCheckBox(
+        ctk.CTkSwitch(
             self.settings_window,
             text="עגל חצאי דפים למעלה",
             variable=self.round_up_halves_var
         ).pack(anchor="w", padx=10, pady=(0,6))
 
-        ctk.CTkCheckBox(
+        ctk.CTkSwitch(
             self.settings_window,
             text="איזן פרקי משנה לפי מספר המשניות",
             variable=self.balance_chapters_by_mishnayot_var
@@ -1032,7 +1039,7 @@ class TorahTreeApp(ctk.CTk):
                 balance_chapters_by_mishnayot=self.balance_chapters_by_mishnayot_var.get()
             )
             messagebox.showinfo("הצלחה", f"הקובץ HTML נשמר:\n{saved_path}")
-            webbrowser.open(saved_path)  # פתיחת הקובץ בדפדפן ברירת המחדל
+            webbrowser.open(resource_path(saved_path))  # פתיחת הקובץ בדפדפן ברירת המחדל
         except Exception as e:
             messagebox.showerror("שגיאה", str(e))
 
@@ -1101,7 +1108,7 @@ class TorahTreeApp(ctk.CTk):
             )
             if saved_path:
                 messagebox.showinfo("הצלחה", f"הקובץ PDF נשמר:\n{saved_path}")
-                webbrowser.open(saved_path)
+                webbrowser.open(resource_path(saved_path))
         except Exception as e:
             messagebox.showerror("שגיאה", str(e))
 
