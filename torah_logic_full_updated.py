@@ -1335,10 +1335,11 @@ def write_bookmark_pdf(
     link_template: str = DEFAULT_LESSON_LINK,
     balance_chapters_by_mishnayot: bool = False,
 ):
-    """Create a PDF bookmark file from the study schedule.
+    """Create a PDF bookmark file from the study schedule using ReportLab.
 
     The schedule HTML is first generated via :func:`write_bookmark_html` and
-    then converted to PDF using ``weasyprint``.
+    then converted to a simple PDF with ReportLab. The PDF is saved next to the
+    HTML output.
 
     Returns the path to the created PDF file or ``None`` if generation failed.
     """
@@ -1361,9 +1362,31 @@ def write_bookmark_pdf(
 
     pdf_path = html_path.replace(".html", ".pdf")
     try:
-        from weasyprint import HTML
+        import re
+        from html import unescape
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
 
-        HTML(html_path).write_pdf(pdf_path)
+        with open(html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+
+        # Convert a subset of HTML to plain text
+        html = re.sub(r"<(script|style).*?>.*?</\\1>", "", html, flags=re.DOTALL)
+        html = re.sub(r"<br\\s*/?>", "\n", html, flags=re.IGNORECASE)
+        html = re.sub(r"</p>", "\n", html, flags=re.IGNORECASE)
+        text = unescape(re.sub(r"<[^>]+>", "", html))
+
+        c = canvas.Canvas(pdf_path, pagesize=A4)
+        width, height = A4
+        text_obj = c.beginText(40, height - 40)
+        for line in text.splitlines():
+            text_obj.textLine(line.rstrip())
+            if text_obj.getY() < 40:
+                c.drawText(text_obj)
+                c.showPage()
+                text_obj = c.beginText(40, height - 40)
+        c.drawText(text_obj)
+        c.save()
         return pdf_path
     except Exception as e:
         print(f"שגיאה ביצירת קובץ PDF: {e}")

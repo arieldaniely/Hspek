@@ -46,15 +46,7 @@ def load_module():
         sys.modules['tkinter.filedialog'] = tk.filedialog
         sys.modules['tkinter.messagebox'] = tk.messagebox
 
-    if 'weasyprint' not in sys.modules:
-        weasy = types.ModuleType('weasyprint')
-        class DummyHTML:
-            def __init__(self, path):
-                self.path = path
-            def write_pdf(self, out_path):
-                Path(out_path).write_bytes(b'%PDF-1.4\n%%EOF')
-        weasy.HTML = DummyHTML
-        sys.modules['weasyprint'] = weasy
+
 
     spec = importlib.util.spec_from_file_location('torah_tree', path)
     module = importlib.util.module_from_spec(spec)
