@@ -11,6 +11,13 @@ import locale
 import os
 import sys
 import webbrowser
+
+try:
+    from utils import resource_path
+except ModuleNotFoundError:  # allows running without the utils module on PATH
+    def resource_path(filename: str) -> str:
+        base = getattr(sys, "_MEIPASS", os.path.abspath("."))
+        return os.path.join(base, filename)
 from pyluach import dates, hebrewcal
 
 # ייבוא פונקציות לוגיות מהמודול הנפרד
@@ -35,13 +42,8 @@ except locale.Error:
 ctk.set_appearance_mode("system")  # הגדרת ערכת נושא בהתאם למערכת
 ctk.set_default_color_theme("blue") # הגדרת צבע ברירת מחדל
 
-DEFAULT_FILE = "torah_tree_data_full.json" # קובץ נתונים ברירת מחדל
 
-def resource_path(filename):
-    """החזרת נתיב לקובץ – עובד גם בפיתוח וגם בתוך EXE"""
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, filename)
-    return os.path.join(os.path.abspath("."), filename)
+DEFAULT_FILE = "torah_tree_data_full.json"  # קובץ נתונים ברירת מחדל
 
 # ==============================================================================
 #                                 מחלקת האפליקציה הראשית
