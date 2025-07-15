@@ -16,7 +16,7 @@ from pyluach import dates, hebrewcal
 from torah_logic_full_updated import (
     load_data, get_length_from_node, has_relevant_data_recursive,
     calculate_study_days, write_ics_file,
-    write_bookmark_html, is_holiday,
+    write_bookmark_html, write_bookmark_pdf, is_holiday,
     Gematria, HEBREW_MONTH_NAMES
 )
 
@@ -375,13 +375,14 @@ class TorahTreeApp(ctk.CTk):
             cb.grid(row=(i // 4) + 1, column=i % 4, sticky="w", padx=5, pady=(2,3))
         no_study_frame.grid(row=4, column=0, sticky="ew", padx=12, pady=(0, 7))
 
-        # מסגרת לכפתורי הייצוא (ICS ו-HTML)
+        # מסגרת לכפתורי הייצוא (ICS, HTML ו-PDF)
         button_frame = ctk.CTkFrame(ctrl_frame, fg_color="transparent")
         button_frame.grid(row=6, column=0, sticky="ew", padx=20, pady=(0, 12))
-        button_frame.grid_columnconfigure((0, 1), weight=1)
+        button_frame.grid_columnconfigure((0, 1, 2), weight=1)
 
         ctk.CTkButton(button_frame, text="לקובץ ייצוא ICS", fg_color="#218cfa", hover_color="#186bb7", text_color="white", command=self.export_ics, height=38).grid(row=0, column=0, sticky="ew", padx=(0, 5))
         ctk.CTkButton(button_frame, text="HTML צור סימנייה", fg_color="#a6d785", hover_color="#7aa557", text_color="black", command=self.export_html, height=38).grid(row=0, column=1, sticky="ew", padx=(5, 0))
+        ctk.CTkButton(button_frame, text="PDF ייצוא", fg_color="#f5d08c", hover_color="#e0b86f", text_color="black", command=self.export_pdf, height=38).grid(row=0, column=2, sticky="ew", padx=(5, 0))
 
         # לחצן קטן לפתיחת תפריט ההגדרות הצדדי
         ctk.CTkButton(
@@ -394,7 +395,7 @@ class TorahTreeApp(ctk.CTk):
             command=self.toggle_settings_panel,
             border_width=0.6,      # הוספה: עובי מסגרת
             border_color="black"
-        ).grid(row=1, column=0, columnspan=2, sticky="e", pady=(6, 0))
+        ).grid(row=1, column=0, columnspan=3, sticky="e", pady=(6, 0))
         # קישור אירוע בחירה בעץ לפונקציה המתאימה
 
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
@@ -1032,6 +1033,75 @@ class TorahTreeApp(ctk.CTk):
             )
             messagebox.showinfo("הצלחה", f"הקובץ HTML נשמר:\n{saved_path}")
             webbrowser.open(saved_path)  # פתיחת הקובץ בדפדפן ברירת המחדל
+        except Exception as e:
+            messagebox.showerror("שגיאה", str(e))
+
+    def export_pdf(self):
+        """מייצא את לוח הלימודים לקובץ PDF."""
+        mode = self.mode.get()
+        if not mode:
+            messagebox.showwarning("אין סוג הספק", "אנא בחר סוג הספק (פרקים, משניות, דפים, עמודים).")
+            return
+
+        start_date = self.parse_date(self.start_date_var.get())
+        end_date = self.parse_date(self.end_date_var.get())
+        if not start_date:
+            messagebox.showerror("שגיאה בתאריך", "אנא הכנס תאריך התחלה תקין.")
+            return
+        if self.schedule_mode_var.get() == 0:
+            if not end_date:
+                messagebox.showerror("שגיאה בתאריך", "אנא הכנס תאריך סיום תקין.")
+                return
+            if start_date > end_date:
+                messagebox.showerror("שגיאה בתאריכים", "תאריך ההתחלה מאוחר מהסיום.")
+                return
+
+        no_study_weekdays_set = {
+            self.weekday_map[day] for day, var in self.no_study_days.items() if var.get()
+        }
+
+        if self.schedule_mode_var.get() == 0:
+            study_days_count = calculate_study_days(start_date, end_date, no_study_weekdays_set, self.skip_holidays_var.get())
+            if study_days_count == 0:
+                messagebox.showwarning("אין ימי לימוד", "אין ימי לימוד זמינים בתקופה שנבחרה.")
+                return
+            if study_days_count > 0 and (self.current_total_content / study_days_count) < 1:
+                messagebox.showwarning("הספק לא תקין", "הממוצע היומי חייב להיות לפחות יחידת לימוד אחת.")
+                return
+        elif self.schedule_mode_var.get() == 1 and self.units_per_day_var.get() <= 0:
+            messagebox.showwarning("הספק לא תקין", "ההספק היומי חייב להיות גדול מאפס.")
+            return
+
+        selected_items = self.tree.selection()
+        if not selected_items:
+            messagebox.showwarning("לא נבחרו פריטים", "אנא בחר פריט/ים מהעץ לייצוא.")
+            return
+
+        selected_titles = []
+        for iid in selected_items:
+            full_path = []
+            current = iid
+            while current:
+                text = self.tree.item(current)["text"]
+                full_path.insert(0, text)
+                current = self.tree.parent(current)
+            selected_titles.append(" / ".join(full_path))
+
+        try:
+            saved_path = write_bookmark_pdf(
+                titles_list=selected_titles,
+                mode=mode,
+                start_date=start_date,
+                end_date=end_date,
+                tree_data=self.data,
+                no_study_weekdays_set=no_study_weekdays_set,
+                units_per_day=self.units_per_day_var.get() if self.schedule_mode_var.get() == 1 else None,
+                skip_holidays=self.skip_holidays_var.get(),
+                balance_chapters_by_mishnayot=self.balance_chapters_by_mishnayot_var.get(),
+            )
+            if saved_path:
+                messagebox.showinfo("הצלחה", f"הקובץ PDF נשמר:\n{saved_path}")
+                webbrowser.open(saved_path)
         except Exception as e:
             messagebox.showerror("שגיאה", str(e))
 

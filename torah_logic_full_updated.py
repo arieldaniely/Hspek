@@ -1323,6 +1323,52 @@ def write_bookmark_html(
         f.write(html)
     return out
 
+def write_bookmark_pdf(
+    titles_list,
+    mode,
+    start_date,
+    end_date,
+    tree_data,
+    no_study_weekdays_set,
+    units_per_day=None,
+    skip_holidays=False,
+    link_template: str = DEFAULT_LESSON_LINK,
+    balance_chapters_by_mishnayot: bool = False,
+):
+    """Create a PDF bookmark file from the study schedule.
+
+    The schedule HTML is first generated via :func:`write_bookmark_html` and
+    then converted to PDF using ``weasyprint``.
+
+    Returns the path to the created PDF file or ``None`` if generation failed.
+    """
+
+    html_path = write_bookmark_html(
+        titles_list,
+        mode,
+        start_date,
+        end_date,
+        tree_data,
+        no_study_weekdays_set,
+        units_per_day=units_per_day,
+        skip_holidays=skip_holidays,
+        link_template=link_template,
+        balance_chapters_by_mishnayot=balance_chapters_by_mishnayot,
+    )
+
+    if not html_path:
+        return None
+
+    pdf_path = html_path.replace(".html", ".pdf")
+    try:
+        from weasyprint import HTML
+
+        HTML(html_path).write_pdf(pdf_path)
+        return pdf_path
+    except Exception as e:
+        print(f"שגיאה ביצירת קובץ PDF: {e}")
+        return None
+
 # ==================== שימוש לדוגמה ====================
 if __name__ == '__main__':
     try:
