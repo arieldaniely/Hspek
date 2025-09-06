@@ -4,9 +4,12 @@ import types
 from pathlib import Path
 import pytest
 
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from hspek.utils.paths import resource_path
+
 
 def load_module():
-    path = Path(__file__).resolve().parents[1] / "torah_logic_full_updated.py"
+    path = Path(resource_path("torah_logic_full_updated.py"))
 
     # Stub external GUI/ICS dependencies so the module can be imported
     if "customtkinter" not in sys.modules:
