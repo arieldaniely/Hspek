@@ -9,24 +9,25 @@ from datetime import date, timedelta, datetime
 import math
 import locale
 import os
-import sys
 import webbrowser
 
-try:
-    from utils import resource_path
-except ModuleNotFoundError:  # allows running without the utils module on PATH
-    def resource_path(filename: str) -> str:
-        base = getattr(sys, "_MEIPASS", os.path.abspath("."))
-        return os.path.join(base, filename)
+from hspek.utils import resource_path
 from pyluach import dates, hebrewcal
 
-# ייבוא פונקציות לוגיות מהמודול הנפרד
-from torah_logic_full_updated import (
-    load_data, get_length_from_node, has_relevant_data_recursive,
-    calculate_study_days, write_ics_file,
-    write_bookmark_html, write_bookmark_pdf, is_holiday,
-    Gematria, HEBREW_MONTH_NAMES
+from hspek.logic.tree import (
+    load_data,
+    get_length_from_node,
+    has_relevant_data_recursive,
+    calculate_study_days,
+    is_holiday,
+    HEBREW_MONTH_NAMES,
 )
+from hspek.logic.exporters import (
+    write_ics_file,
+    write_bookmark_html,
+    write_bookmark_pdf,
+)
+from hspek.logic.gematria import Gematria
 
 # ==============================================================================
 #                                הגדרות גלובליות
