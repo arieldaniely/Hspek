@@ -9,9 +9,9 @@ from datetime import date, timedelta, datetime
 import math
 import locale
 import os
-import sys
 import webbrowser
 from pyluach import dates, hebrewcal
+from hspek.utils.paths import resource_path
 
 # ייבוא פונקציות לוגיות מהמודול הנפרד
 from torah_logic_full_updated import (
@@ -36,12 +36,6 @@ ctk.set_appearance_mode("system")  # הגדרת ערכת נושא בהתאם ל�
 ctk.set_default_color_theme("blue") # הגדרת צבע ברירת מחדל
 
 DEFAULT_FILE = "torah_tree_data_full.json" # קובץ נתונים ברירת מחדל
-
-def resource_path(filename):
-    """החזרת נתיב לקובץ – עובד גם בפיתוח וגם בתוך EXE"""
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, filename)
-    return os.path.join(os.path.abspath("."), filename)
 
 # ==============================================================================
 #                                 מחלקת האפליקציה הראשית
