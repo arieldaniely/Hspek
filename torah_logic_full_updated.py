@@ -10,15 +10,16 @@ from pyluach import dates, hebrewcal, parshios
 from jinja2 import Environment, FileSystemLoader
 from collections import defaultdict
 
+try:
+    from utils import resource_path
+except ModuleNotFoundError:  # falls back when running as a standalone file
+    def resource_path(filename: str) -> str:
+        base = getattr(sys, "_MEIPASS", os.path.abspath("."))
+        return os.path.join(base, filename)
+
 # כתובת ברירת מחדל לפתיחת חומר הלימוד היומי
 # {ref} מוחלף בהפניה המדויקת בספריא (לדוגמה "בראשית.א-ב")
 DEFAULT_LESSON_LINK = "https://www.sefaria.org.il/he/{ref}"
-
-def resource_path(filename):
-    """החזרת נתיב לקובץ – עובד גם בפיתוח וגם בתוך EXE"""
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, filename)
-    return os.path.join(os.path.abspath("."), filename)
 
 
 # זיהוי קטגוריית התוכן (תנ"ך, משנה או תלמוד) לפי הנתיב המלא של היחידה
